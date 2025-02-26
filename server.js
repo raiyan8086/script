@@ -1360,8 +1360,9 @@ async function getGmailData() {
         let data = response.data
         if (data) {
             let number = Object.keys(data)[0]
-            let split = data[number].split('||')
-            return { number:number, password:split[0], cookies:split[1] }
+            let value = data[number]
+            value['number'] = number
+            return value
         }
     } catch (error) {}
 
