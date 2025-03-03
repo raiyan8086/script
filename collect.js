@@ -439,13 +439,13 @@ async function waitForNumberRemove(page, mRapt) {
                 for (let i = 0; i < 2; i++) {
                     try {
                         let button = await page.$$('div[class="U26fgb O0WRkf oG5Srb HQ8yf C0oVfc kHssdc HvOprf FsOtSd M9Bg4d"]')
-                        if (button && button.length == 2) {
-                            await button[1].click()
+                        if (button && button.length > 0) {
+                            await button[button.length-1].click()
                             await delay(3000)
                         } else {
                             let button = await page.$$('button[class="VfPpkd-LgbsSe VfPpkd-LgbsSe-OWXEXe-dgl2Hf ksBjEc lKxP2d LQeN7"]')
-                            if (button && button.length == 2) {
-                                await button[1].click()
+                            if (button && button.length > 0) {
+                                await button[button.length-1].click()
                                 await delay(3000)
                             } else {
                                 await delay(1000)
