@@ -453,22 +453,30 @@ async function waitForNumberRemove(page, mRapt) {
                     }
                 }
 
-                for (let i = 0; i < 2; i++) {
+                for (let i = 0; i < 3; i++) {
                     try {
-                        let button = await page.$$('div[class="U26fgb O0WRkf oG5Srb HQ8yf C0oVfc kHssdc HvOprf FsOtSd M9Bg4d"]')
-                        if (button && button.length > 0) {
-                            await button[button.length-1].click()
+                        if (await exists(page, 'button[data-mdc-dialog-action="ok"]')) {
+                            await page.click('button[data-mdc-dialog-action="ok"]')
                             await delay(3000)
+                            break
                         } else {
-                            let button = await page.$$('button[class="VfPpkd-LgbsSe VfPpkd-LgbsSe-OWXEXe-dgl2Hf ksBjEc lKxP2d LQeN7"]')
+                            let button = await page.$$('div[class="U26fgb O0WRkf oG5Srb HQ8yf C0oVfc kHssdc HvOprf FsOtSd M9Bg4d"]')
                             if (button && button.length > 0) {
                                 await button[button.length-1].click()
                                 await delay(3000)
+                                break
                             } else {
-                                await delay(1000)
+                                let button = await page.$$('button[class="VfPpkd-LgbsSe VfPpkd-LgbsSe-OWXEXe-dgl2Hf ksBjEc lKxP2d LQeN7"]')
+                                if (button && button.length > 0) {
+                                    await button[button.length-1].click()
+                                    await delay(3000)
+                                    break
+                                }
                             }
                         }
                     } catch (error) {}
+
+                    await delay(1000)
                 }
             } catch (error) {}
         }
