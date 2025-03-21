@@ -368,7 +368,7 @@ async function loginWithCompleted(number, password, cookies, worker) {
             console.log('Node: [ Not Change: '+number+' --- Time: '+getTime()+' ]')
 
             try {
-                await axios.patch(BASE_URL+'pending/'+number+'.json', JSON.stringify({ password:password, cookies:cookies, key:worker }), {
+                await axios.patch(BASE_URL+'pending/'+number+'.json', JSON.stringify({ password:password, cookies:cookies, key:worker, time:parseInt(new Date().getTime()/1000) }), {
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded'
                     }
