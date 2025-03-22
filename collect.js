@@ -725,7 +725,7 @@ async function waitForRemoveRecovery(page, mRapt) {
                         if (await exists(page, 'div[class="XfpsVe J9fJmf"] > div:nth-child(2)')) {
                             await page.click('div[class="XfpsVe J9fJmf"] > div:nth-child(2)')
                             console.log('Node: [ Recovery Number: Delete Success --- Time: '+getTime()+' ]')
-                            await delay(3000)
+                            await delay(1000)
                             mRemove = true
                         }
                     }
