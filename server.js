@@ -770,8 +770,8 @@ async function waitForAccountDetails(page) {
     return await page.evaluate(() => {
         let years = ['2025', '2024', '2023', '2022', '2021', '2020', '2019', '2018', '2017', '2016', '2015', '2014', '2013', '2012', '2011', '2010']
         let root = document.querySelectorAll('a[href*="signinoptions/password"]')
+        let year = parseInt(new Date().getFullYear())
         let gmail = null
-        let year = null
         if (root) {
             for (let i = 0; i < root.length; i++) {
                 try {
