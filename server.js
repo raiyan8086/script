@@ -263,11 +263,7 @@ async function loginWithCompleted(number, password, cookies, worker) {
                     console.log('Node: [ Rapt Token: '+(mRapt == null ? 'NULL' : 'Received')+' --- Time: '+getTime()+' ]')
                     
                     if (mRapt) {
-                        for (let i = 0; i < 3; i++) {
-                            if (await waitForRemoveRecovery(page, mRapt)) {
-                                break
-                            }
-                        }
+                        await waitForRemoveRecovery(page, mRapt)
     
                         if (mMailData == null) {
                             mMailRequest = true
@@ -731,10 +727,18 @@ async function waitForRemoveRecovery(page, mRapt) {
         }
 
         for (let i = 0; i < 10; i++) {
-            if (await exists(page, 'div[data-phone]') && await exists(page, 'div[class="kvjuQc biRLo"]')) {
+            if (await exists(page, 'div[data-phone]')) {
                 try {
-                    await delay(500)
-                    await page.click('div[class="kvjuQc biRLo"] > div:nth-child(2)')
+                    if (await exists(page, 'div[class="N9Ni5"] > div:nth-child(2)')) {
+                        await delay(500)
+                        await page.click('div[class="N9Ni5"] > div:nth-child(2)')
+                    } else if (await exists(page, 'div[class="kvjuQc biRLo"] > div:nth-child(2)')) {
+                        await delay(500)
+                        await page.click('div[class="kvjuQc biRLo"] > div:nth-child(2)')
+                    } else {
+                        await delay(1000)
+                        continue
+                    }
                     
                     for (let i = 0; i < 10; i++) {
                         await delay(1000)
