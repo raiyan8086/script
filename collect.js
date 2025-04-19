@@ -714,18 +714,17 @@ async function waitForRemoveRecovery(page, mRapt) {
         }
 
         for (let i = 0; i < 10; i++) {
-            if (await exists(page, 'div[data-phone]')) {
+            if (await exists(page, 'div[data-phone]') && await exists(page, 'div[class="kvjuQc biRLo"]')) {
                 try {
-                    await waitForSelector(page, 'div[class="N9Ni5"] > div:nth-child(2)')
                     await delay(500)
-                    await page.click('div[class="N9Ni5"] > div:nth-child(2)')
+                    await page.click('div[class="kvjuQc biRLo"] > div:nth-child(2)')
                     
                     for (let i = 0; i < 10; i++) {
                         await delay(1000)
                         if (await exists(page, 'div[class="XfpsVe J9fJmf"] > div:nth-child(2)')) {
                             await page.click('div[class="XfpsVe J9fJmf"] > div:nth-child(2)')
                             console.log('Node: [ Recovery Number: Delete Success --- Time: '+getTime()+' ]')
-                            await delay(1000)
+                            await delay(2000)
                             mRemove = true
                         }
                     }
