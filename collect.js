@@ -507,28 +507,58 @@ async function waitForRecoveryAdd(page, mRapt, mRecovery) {
         await page.goto('https://myaccount.google.com/recovery/email?hl=en&rapt='+mRapt, { waitUntil: 'load', timeout: 0 })
         await delay(500)
 
-        let hasMail = await page.evaluate(() => {
-            let root = document.querySelector('input[type="email"]')
-            if (root) {
-                return root.value.length > 0
-            }
-        })
-
         if (!mRecovery) mRecovery = getRandomUser()+'@oletters.com'
 
-        await page.focus('input[type="email"]')
-        if (hasMail) {
+        if (await exists(page, 'button[class="VfPpkd-LgbsSe VfPpkd-LgbsSe-OWXEXe-INsAgc VfPpkd-LgbsSe-OWXEXe-Bz112c-M1Soyc VfPpkd-LgbsSe-OWXEXe-dgl2Hf Rj2Mlf OLiIxf PDpWxe LQeN7 wMI9H"]')) {
+            await page.click('button[class="VfPpkd-LgbsSe VfPpkd-LgbsSe-OWXEXe-INsAgc VfPpkd-LgbsSe-OWXEXe-Bz112c-M1Soyc VfPpkd-LgbsSe-OWXEXe-dgl2Hf Rj2Mlf OLiIxf PDpWxe LQeN7 wMI9H"]')
+            await delay(2000)
+            await page.focus('input[type="email"]')
+            await page.keyboard.type(mRecovery)
+            await delay(500)
+            await page.click('button[class="VfPpkd-LgbsSe VfPpkd-LgbsSe-OWXEXe-k8QpJ VfPpkd-LgbsSe-OWXEXe-dgl2Hf nCP5yc AjY5Oe DuMIQc LQeN7 wMI9H"]')
+
+            await delay(3000)
+            return mRecovery
+        } else if (await exists(page, 'button[class="VfPpkd-Bz112c-LgbsSe yHy1rc eT1oJ mN1ivc wMI9H"]')) {
+            await page.click('button[class="VfPpkd-Bz112c-LgbsSe yHy1rc eT1oJ mN1ivc wMI9H"]')
+            await delay(2000)
+
+            await page.focus('input[type="email"]')
             await page.keyboard.down('Control')
             await page.keyboard.press('A')
             await page.keyboard.up('Control')
             await page.keyboard.press('Backspace')
-        }
-        await page.keyboard.type(mRecovery)
-        await delay(500)
-        await page.click('button[type="submit"]')
-        await delay(3000)
 
-        return mRecovery
+            await page.keyboard.type(mRecovery)
+            await delay(500)
+            await page.click('button[class="VfPpkd-LgbsSe VfPpkd-LgbsSe-OWXEXe-k8QpJ VfPpkd-LgbsSe-OWXEXe-dgl2Hf nCP5yc AjY5Oe DuMIQc LQeN7 wMI9H"]')
+
+            await delay(3000)
+            return mRecovery
+        } else if (await exists(page, 'input[type="email"]')) {
+            let hasMail = await page.evaluate(() => {
+                let root = document.querySelector('input[type="email"]')
+                if (root) {
+                    return root.value.length > 0
+                }
+            })
+
+            await page.focus('input[type="email"]')
+
+            if (hasMail) {
+                await page.keyboard.down('Control')
+                await page.keyboard.press('A')
+                await page.keyboard.up('Control')
+                await page.keyboard.press('Backspace')
+            }
+            
+            await page.keyboard.type(mRecovery)
+            await delay(500)
+            await page.click('button[type="submit"]')
+            await delay(3000)
+
+            return mRecovery
+        }
     } catch (error) {}
 
     return null
