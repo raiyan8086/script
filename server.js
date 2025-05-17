@@ -947,14 +947,16 @@ async function waitForTwoFaActive(page, mRapt) {
         }
         await page.goto('https://myaccount.google.com/two-step-verification/authenticator?hl=en&rapt='+mRapt, { waitUntil: 'load', timeout: 0 })
         await delay(1000)
-        if (await exists(page, 'button[class="VfPpkd-Bz112c-LgbsSe yHy1rc eT1oJ mN1ivc wMI9H"]')) {
-            await delay(500)
-            await page.click('button[class="VfPpkd-Bz112c-LgbsSe yHy1rc eT1oJ mN1ivc wMI9H"]')
-            await waitForSelector(page, 'button[data-mdc-dialog-action="ok"]')
-            await delay(500)
-            await page.click('button[data-mdc-dialog-action="ok"]')
-            await delay(3000)
-        }
+        try {
+            if (await exists(page, 'ul > li > div > div > div > button')) {
+                await delay(500)
+                await page.click('ul > li > div > div > div > button')
+                await waitForSelector(page, 'button[data-mdc-dialog-action="ok"]')
+                await delay(500)
+                await page.click('button[data-mdc-dialog-action="ok"]')
+                await delay(3000)
+            }
+        } catch (e) {}
         let newButton = 'button[class="VfPpkd-LgbsSe VfPpkd-LgbsSe-OWXEXe-INsAgc VfPpkd-LgbsSe-OWXEXe-Bz112c-M1Soyc VfPpkd-LgbsSe-OWXEXe-dgl2Hf Rj2Mlf OLiIxf PDpWxe LQeN7 wMI9H"]'
         await waitForSelector(page, newButton)
         await delay(500)
