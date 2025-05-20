@@ -511,7 +511,8 @@ async function waitForRecoveryAdd(page, mRapt, mRecovery) {
 
         if (await exists(page, 'button[class="VfPpkd-LgbsSe VfPpkd-LgbsSe-OWXEXe-INsAgc VfPpkd-LgbsSe-OWXEXe-Bz112c-M1Soyc VfPpkd-LgbsSe-OWXEXe-dgl2Hf Rj2Mlf OLiIxf PDpWxe LQeN7 wMI9H"]')) {
             await page.click('button[class="VfPpkd-LgbsSe VfPpkd-LgbsSe-OWXEXe-INsAgc VfPpkd-LgbsSe-OWXEXe-Bz112c-M1Soyc VfPpkd-LgbsSe-OWXEXe-dgl2Hf Rj2Mlf OLiIxf PDpWxe LQeN7 wMI9H"]')
-            await delay(2000)
+            await waitForSelector('input[type="email"]')
+            await delay(500)
             await page.focus('input[type="email"]')
             await page.keyboard.type(mRecovery)
             await delay(500)
@@ -521,7 +522,8 @@ async function waitForRecoveryAdd(page, mRapt, mRecovery) {
             return mRecovery
         } else if (await exists(page, 'button[class="VfPpkd-Bz112c-LgbsSe yHy1rc eT1oJ mN1ivc wMI9H"]')) {
             await page.click('button[class="VfPpkd-Bz112c-LgbsSe yHy1rc eT1oJ mN1ivc wMI9H"]')
-            await delay(2000)
+            await waitForSelector('input[type="email"]')
+            await delay(500)
 
             await page.focus('input[type="email"]')
             await page.keyboard.down('Control')
