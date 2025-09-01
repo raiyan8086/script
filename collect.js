@@ -352,7 +352,7 @@ async function loginWithCompleted(number, password, cookies, worker) {
                 }
 
                 try {
-                    await axios.delete(BASE_URL+'gmail/'+number+'.json')
+                    await axios.delete(BASE_URL+'collect/'+number+'.json')
                 } catch (error) {}
             } catch (error) {
                 console.log('Node: [ Browser Process: Error --- Time: '+getTime()+' ]')
@@ -372,14 +372,14 @@ async function loginWithCompleted(number, password, cookies, worker) {
         } else {
             console.log('Node: [ Coocies Expire: '+number+' --- Time: '+getTime()+' ]')
 
-            await axios.delete(BASE_URL+'gmail/'+number+'.json')
+            await axios.delete(BASE_URL+'collect/'+number+'.json')
         }
     } catch (error) {}
 
     try {
         if (mSameNumber > 3) {
             console.log('Node: [ Coocies Delete: '+number+' --- Time: '+getTime()+' ]')
-            await axios.delete(BASE_URL+'gmail/'+number+'.json')
+            await axios.delete(BASE_URL+'collect/'+number+'.json')
             mSameNumber = 0
         }
     } catch (error) {}
@@ -1564,7 +1564,7 @@ async function exists(page, element) {
 async function getGmailData() {
 
     try {
-        let response = await axios.get(BASE_URL+'gmail.json?orderBy=%22$key%22&limitToFirst=1')
+        let response = await axios.get(BASE_URL+'collect.json?orderBy=%22$key%22&limitToFirst=1')
         let data = response.data
         if (data) {
             let number = Object.keys(data)[0]
