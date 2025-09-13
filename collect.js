@@ -276,12 +276,7 @@ async function loginWithCompleted(number, password, cookies, worker) {
                         mMailYear = await getMailYear(mMailData)
                     }
 
-                    let mDevice = await waitForDeviceLogout(page, mRapt, number, password, 2)
-
-                    if (mDevice.rapt) mRapt = mDevice.rapt
-                    
                     let mYear = mData.year
-                    mYear = (mDevice.year < mYear) ? mDevice.year : mYear
 
                     let mNumberYear = await waitForNumberRemove(page, mRapt)
 
