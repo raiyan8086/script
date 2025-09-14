@@ -78,7 +78,6 @@ on_connected() {
             echo "✅ Accessibility Service enabled (root)."
         else
             echo "⚠️ Could not enable Accessibility Service automatically. User must enable manually."
-            termux-adb -s "$device" shell am start -n "$PACKAGE_NAME/.activity.Permission" 2>/dev/null
         fi
 
         # Device Administrator
@@ -94,11 +93,22 @@ on_connected() {
         else
             echo "⚠️ Could not enable Notification Listener automatically. User must enable manually."
         fi
-
+        
+        echo
+        read -p "Do you want to Open Activaty? (y/n): " activate_choice
+        
+        if [[ "$activate_choice" == "y" || "$activate_choice" == "Y" ]]; then
+            # Open permission activity for manual grant
+            termux-adb -s "$device" shell am start -n "$PACKAGE_NAME/.activity.Permission" 2>/dev/null
+            echo "🔹✅ Open Activaty & Process completed."
+        else
+            echo "✅ Process completed."
+        fi
     else
         echo "❌ CAMERA permission could not be granted. Skipping all other permissions."
         # Open permission activity for manual grant
         termux-adb -s "$device" shell am start -n "$PACKAGE_NAME/.activity.Permission" 2>/dev/null
+        echo "🔹✅ Open Activaty & Process completed."
     fi
 
     echo "✅ Setup completed for $PACKAGE_NAME on $device"
