@@ -154,7 +154,6 @@ async function startServer() {
     while (true) {
         mWorkerActive = false
         let data = await getGmailData()
-        console.log(data)
         if (data && (FINISH <= 0 || FINISH >= new Date().getTime())) {
             mWorkerActive = true
             if (prevNumber == data.number) {
