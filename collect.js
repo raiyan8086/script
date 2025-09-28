@@ -287,7 +287,7 @@ async function loginWithCompleted(number, password, cookies, worker) {
 
                     if (rapt) mRapt = rapt
                     
-                    let mRecovery = await waitForRecoveryAdd(page, number, password, mRapt, mYear < 2019 || mMailYear < 2019 ? 'arafat.arf121@gmail.com' : null)
+                    let mRecovery = await waitForRecoveryAdd(page, number, password, mRapt, 'arafat.arf121@gmail.com')
     
                     console.log('Node: [ Recovery Mail: '+mRecovery+' --- Time: '+getTime()+' ]')
                     
