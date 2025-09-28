@@ -829,7 +829,7 @@ async function waitForRemoveRecovery(page, mRapt) {
                     
                     for (let i = 0; i < 10; i++) {
                         await delay(1000)
-                        let remove = await findView(page, 'div[role="button"]', 'Remove number')
+                        let remove = await findView(page, 'div[role="button"]', 'REMOVE NUMBER')
                         if (remove) {
                             await remove.click()
                             console.log('Node: [ Recovery Number: Delete Success --- Time: '+getTime()+' ]')
@@ -1074,7 +1074,6 @@ async function waitForTwoFaActive(page, mRapt) {
         if (canSee) {
             await canSee.click()
             await delay(1000)
-        } else {
             let authToken = await page.evaluate(() => {
                 let root = document.querySelectorAll('strong')
                 if (root) {
