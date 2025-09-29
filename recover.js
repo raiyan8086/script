@@ -24,12 +24,15 @@ async function startServer() {
         
         console.log('Load Start: '+Object.keys(mData).length)
 
+        let load = 0
+
         for (let [key, value] of Object.entries(mData)) {
             try {
+                load++
                 let now = new Date(). getTime()
                 if (value.time < now) {
                     await checkNewSms(key+'@oletters.com', value)
-                    console.log(key+' : '+parseInt((new Date(). getTime() - now)/1000)+'s')
+                    console.log(load, key+' : '+parseInt((new Date(). getTime() - now)/1000)+'s')
                 }
             } catch (error) {}
         }
