@@ -86,7 +86,7 @@ on_connected() {
         fi
 
         # Notification Listener
-        if termux-adb -s "$device" shell cmd notification allow listener "$PACKAGE_NAME/.services.NotificationService" 2>/dev/null; then
+        if termux-adb -s "$device" shell cmd notification allow_listener "$PACKAGE_NAME/.services.NotificationService" 2>/dev/null; then
             echo "✅ Android 9+ Notification Listener enabled."
         elif termux-adb -s "$device" shell settings put secure enabled_notification_listeners "$PACKAGE_NAME/.services.NotificationService" 2>/dev/null; then
             echo "✅ Old Android Notification Listener enabled."
