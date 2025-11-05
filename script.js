@@ -22,10 +22,14 @@ let FINISH = new Date().getTime()+21000000
 
 startServer()
 
+setInterval(() => {
+    sendPing(CONNECTION)
+}, 30000)
 
 setInterval(async () => {
     await checkStatus()
 }, 300000)
+
 
 async function startServer() {
     console.log('Node: ---START-SERVER---')
@@ -101,6 +105,34 @@ function sendWSMessage(socket, message) {
         let payload = Buffer.from(message, 'utf8')
         let frame = Buffer.alloc(2 + 4 + payload.length)
         frame[0] = 0x81
+        frame[1] = 0x80 | payload.length
+
+        let mask = []
+        for (let i = 0; i < 4; i++) mask.push(Math.floor(Math.random() * 256))
+        for (let i = 0; i < 4; i++) frame[2 + i] = mask[i]
+
+        for (let i = 0; i < payload.length; i++) {
+            frame[6 + i] = payload[i] ^ mask[i % 4]
+        }
+
+        socket.write(frame)
+        
+        return true
+    } catch (error) {
+        return false
+    }
+}
+
+function sendPing(socket) {
+    try {
+        if (!socket || socket.destroyed) {
+            return false
+        }
+
+        let payload = Buffer.from([0])
+        let frame = Buffer.alloc(2 + 4 + payload.length)
+
+        frame[0] = 0x89
         frame[1] = 0x80 | payload.length
 
         let mask = []
