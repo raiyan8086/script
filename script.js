@@ -80,8 +80,6 @@ async function runWebSocket(url) {
     })
     
     socket.on('end', () => {
-        console.log('Connection End')
-        
         CONNECTION = null
         setTimeout(async () => {
             await runWebSocket(url)
@@ -89,8 +87,6 @@ async function runWebSocket(url) {
     })
 
     socket.on('error', (err) => {
-        console.log('Connection Error: '+err)
-        
         CONNECTION = null
         socket.destroy()
     })
