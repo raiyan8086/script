@@ -149,8 +149,8 @@ app.get('/clients', async (req, res) => {
     })
 })
 
-server.listen(process.env.PORT || 443, ()=>{
-    console.log('Listening on port 443...')
+server.listen(process.env.PORT || 8080, ()=>{
+    console.log('Listening on port 8080...')
 })
 
 
