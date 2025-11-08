@@ -98,6 +98,8 @@ wss.on('connection', (ws, request) => {
 
                     if (targetWs && targetWs.readyState === WebSocket.OPEN) {
                         ws.send(JSON.stringify({ type: 'connect', id: data.targetId }))
+                    } else {
+                        ws.send(JSON.stringify({ type: 'disconnect', id: data.targetId }))
                     }
                 } else if ((data.type === 'message' || data.type === 'message_save') && data.targetId && data.message) {
                     let targetWs = clients.get(data.targetId)
