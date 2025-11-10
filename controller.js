@@ -8,7 +8,7 @@ let FINISH = new Date().getTime()+21000000
 
 let BASE_URL = decode('aHR0cHM6Ly9kYXRhYmFzZTA4OC1kZWZhdWx0LXJ0ZGIuZmlyZWJhc2Vpby5jb20vJUMyJUEzdWNrJUUzJTgwJTg1eW91Lw==')
 
-USER = 'qsnrhamara86079'
+// USER = 'qsnrhamara86079'
 
 startServer()
 
@@ -29,6 +29,7 @@ async function startServer() {
     console.log('Node: ---START-SERVER---')
     
     let data = await onServerDetails()
+    
     if (!data) {
         console.log('---PROCESS-CLOSE---')
         process.exit(0)
@@ -47,6 +48,8 @@ async function onServerDetails() {
         let data = response.data
 
         if (data) {
+            response = await axios.get(BASE_URL+'database/'+data.database+'.json')
+            data.database = response.data
             return data
         }
     } catch (error) {}
