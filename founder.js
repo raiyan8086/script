@@ -8,3 +8,7 @@ process.on('message', (data) => {
     console.log('From index:', data)
     // process.send(JSON.stringify({"s":300}))
 })
+
+setInterval(async () => {
+    console.log('Update Data')
+}, 60000)
