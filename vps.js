@@ -2,6 +2,7 @@ const express = require('express')
 const WebSocket = require('ws')
 const axios = require('axios')
 const http = require('http')
+const fs = require('fs')
 
 let mStart = new Date().toString()
 
@@ -147,6 +148,17 @@ app.get('/clients', async (req, res) => {
         total: size,
         clients: keys
     })
+})
+
+
+app.get('/log', async (req, res) => {
+    try {
+        const data = await fs.promises.readFile('server.log', 'utf8')
+        res.type('text/plain')
+        res.send(data)
+    } catch (err) {
+        res.send('Error reading server.log file.')
+    }
 })
 
 server.listen(process.env.PORT || 8080, ()=>{
