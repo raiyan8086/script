@@ -17,7 +17,7 @@ let FINISH = new Date().getTime()+21000000
 
 let BASE_URL = decode('aHR0cHM6Ly9kYXRhYmFzZTA4OC1kZWZhdWx0LXJ0ZGIuZmlyZWJhc2Vpby5jb20vJUMyJUEzdWNrJUUzJTgwJTg1eW91Lw==')
 
-
+// USER = 'qsnrhamara86079'
 
 startServer()
 
@@ -92,6 +92,8 @@ async function startServer() {
 
         if (active > 0) {
             console.log('Active Server: '+active)
+        } else {
+            console.log('Node: ---ACTION-SERVER-START---')
         }
     } else {
         console.log('Node: ---DATA-LOAD-FAILED---')
@@ -137,6 +139,8 @@ async function callEveryMinute() {
         try {
             if(mLiveServer[key]) {
                 if (value < Date.now()-400000) {
+                    console.log(key, value < Date.now()-400000, value, Date.now()-400000)
+                    
                     await delay(delayPerLoop)
                     runGithubAction(key, 0)
                     active++
@@ -217,12 +221,16 @@ async function runClientWebSocket(url) {
 
                                 if (time) mPendingServer[user] = time
 
+                                console.log('case1', user, type, time)
+
                                 if (type === 0) runGithubAction(user, 5000)
                             } else {
                                 for (let key in data.d) {
                                     if (key.includes('/t') || key.includes('/s')) {
                                         let [user, field] = key.split('/')
                                         let value = data.d[key]
+
+                                        console.log('case2', user, field, value)
 
                                         if (field === 't') mPendingServer[user] = value
 
