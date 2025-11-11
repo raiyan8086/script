@@ -139,7 +139,7 @@ async function callEveryMinute() {
         try {
             if(mLiveServer[key]) {
                 if (value < Date.now()-400000) {
-                    console.log(key, value < Date.now()-400000, value, Date.now()-400000)
+                    console.log('case0', key, value < Date.now()-400000, value, Date.now()-400000, new Date().toDateString())
                     
                     await delay(delayPerLoop)
                     runGithubAction(key, 0)
@@ -221,7 +221,7 @@ async function runClientWebSocket(url) {
 
                                 if (time) mPendingServer[user] = time
 
-                                console.log('case1', user, type, time)
+                                console.log('case1', user, type, time, new Date().toDateString())
 
                                 if (type === 0) runGithubAction(user, 5000)
                             } else {
@@ -230,7 +230,7 @@ async function runClientWebSocket(url) {
                                         let [user, field] = key.split('/')
                                         let value = data.d[key]
 
-                                        console.log('case2', user, field, value)
+                                        console.log('case2', user, field, value, new Date().toDateString())
 
                                         if (field === 't') mPendingServer[user] = value
 
