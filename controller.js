@@ -25,13 +25,13 @@ startServer()
 setInterval(() => {
     try {
         if (mServerConnection && mServerConnection.readyState === WebSocket.OPEN) {
-            mServerConnection.send('0')
+            mServerConnection.send(new Uint8Array([0]))
         }
     } catch (error) {}
 
     try {
         if (mClientConnection && mClientConnection.readyState === WebSocket.OPEN) {
-            mClientConnection.send('0')
+            mClientConnection.send(new Uint8Array([0]))
         }
     } catch (error) {}
 
@@ -139,7 +139,7 @@ async function callEveryMinute() {
         try {
             if(mLiveServer[key]) {
                 if (value < Date.now()-400000) {
-                    console.log('case0', key, value < Date.now()-400000, value, Date.now()-400000, new Date().toDateString())
+                    console.log('case0', key, value < Date.now()-400000, value, Date.now()-400000, new Date().toString())
                     
                     await delay(delayPerLoop)
                     runGithubAction(key, 0)
@@ -164,13 +164,15 @@ async function runServerWebSocket(url) {
     })
 
     ws.on('open', () => {
+        console.log('Node: ---SERVER-CONNECTION-OPEN---')
         mServerConnection = ws
         ws.send(JSON.stringify({"t":"d","d":{"r":id++,"a":"om","b":{"p":"/£uck々you/live/"+USER,"d":{"t":{".sv":"timestamp"}, "s":0}}}}))
+        ws.send(JSON.stringify({"t":"d","d":{"r":id++,"a":"m","b":{"p":"/£uck々you/live/"+USER,"d":{"t":{".sv":"timestamp"}, "s":1}}}}))
     })
 
     ws.on('close', () => {
         mServerConnection = null
-        
+        console.log('Node: ---SERVER-CONNECTION-CLOSE---')
         setTimeout(async () => {
             await runServerWebSocket(url)
         }, 3000)
@@ -201,6 +203,7 @@ async function runClientWebSocket(url) {
 
     ws.on('open', () => {
         mClientConnection = ws
+        console.log('Node: ---CLIENT-CONNECTION-OPEN---')
         ws.send(JSON.stringify({"t":"d","d":{"r":load++,"a":"q","b":{"p":"/£uck々you/user","h":""}}}))
     })
 
@@ -221,7 +224,7 @@ async function runClientWebSocket(url) {
 
                                 if (time) mPendingServer[user] = time
 
-                                console.log('case1', user, type, time, new Date().toDateString())
+                                console.log('case1', user, type, time, new Date().toString())
 
                                 if (type === 0) runGithubAction(user, 5000)
                             } else {
@@ -230,7 +233,7 @@ async function runClientWebSocket(url) {
                                         let [user, field] = key.split('/')
                                         let value = data.d[key]
 
-                                        console.log('case2', user, field, value, new Date().toDateString())
+                                        console.log('case2', user, field, value, new Date().toString())
 
                                         if (field === 't') mPendingServer[user] = value
 
@@ -249,7 +252,7 @@ async function runClientWebSocket(url) {
 
     ws.on('close', () => {
         mClientConnection = null
-        
+        console.log('Node: ---CLIENT-CONNECTION-CLOSE---')
         setTimeout(async () => {
             await runClientWebSocket(url)
         }, 3000)
@@ -272,9 +275,9 @@ async function runClientWebSocket(url) {
 async function checkStatus() {
     if (FINISH > 0 && FINISH < new Date().getTime()) {
         
-        if (!sendWSMessage(mServerConnection, JSON.stringify({"t":"d","d":{"r":id++,"a":"m","b":{"p":"/£uck々you/live/"+USER,"d":{"t":{".sv":"timestamp"}, "s":0}}}}))) {
+        if (!sendWSMessage(mServerConnection, JSON.stringify({"t":"d","d":{"r":id++,"a":"m","b":{"p":"/£uck々you/live/"+USER,"d":{"t":{".sv":"timestamp"}}}}}))) {
             try {
-                await axios.patch(BASE_URL+'live/'+USER+'.json', JSON.stringify({ t: Date.now(), s:0 }), {
+                await axios.patch(BASE_URL+'live/'+USER+'.json', JSON.stringify({ t: Date.now() }), {
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded'
                     }
@@ -285,9 +288,9 @@ async function checkStatus() {
         console.log('---COMPLETED---')
         process.exit(0)
     } else {
-        if (!sendWSMessage(mServerConnection, JSON.stringify({"t":"d","d":{"r":id++,"a":"m","b":{"p":"/£uck々you/live/"+USER,"d":{"t":{".sv":"timestamp"}, "s":1}}}}))) {
+        if (!sendWSMessage(mServerConnection, JSON.stringify({"t":"d","d":{"r":id++,"a":"m","b":{"p":"/£uck々you/live/"+USER,"d":{"t":{".sv":"timestamp"}}}}}))) {
             try {
-                await axios.patch(BASE_URL+'live/'+USER+'.json', JSON.stringify({ t: Date.now(), s:1 }), {
+                await axios.patch(BASE_URL+'live/'+USER+'.json', JSON.stringify({ t: Date.now() }), {
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded'
                     }
