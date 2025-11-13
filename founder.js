@@ -10,5 +10,4 @@ process.on('message', (data) => {
 })
 
 setInterval(async () => {
-    console.log('Update Data')
 }, 60000)
