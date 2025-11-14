@@ -11,11 +11,14 @@ const firebaseConfig = {
     measurementId: "G-R8QYQ3YDL5"
 }
 
+let FINISH = new Date().getTime()+21000000
+
+
 const app = initializeApp(firebaseConfig)
 
 const db = getDatabase(app)
 
-const userId = "USER_TEST"
+const userId = "USER_123"
 
 const userStatusRef = ref(db, `status/${userId}`)
 
@@ -24,3 +27,14 @@ set(userStatusRef, { state: "online", last_changed: serverTimestamp(), now: Date
 onDisconnect(userStatusRef).set({ state: "offline", last_changed: serverTimestamp(), now: Date.now() })
 
 console.log("🔥 onDisconnect() setup complete")
+
+setInterval(async () => {
+    await checkStatus()
+}, 300000)
+
+async function checkStatus() {
+    if (FINISH > 0 && FINISH < new Date().getTime()) {
+        console.log('---COMPLETED---', new Date().toString())
+        process.exit(0)
+    }
+}
