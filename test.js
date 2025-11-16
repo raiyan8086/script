@@ -21,7 +21,7 @@ async function runServerWebSocket(url) {
 
     ws.on('open', () => {
         mConnection = ws
-        console.log('Node: ---CONNECTION-OPEN---')
+        console.log('Node: ---CONNECTION-OPEN---', new Date().toString())
 
         ws.send(JSON.stringify({
             t: 2,
@@ -32,7 +32,7 @@ async function runServerWebSocket(url) {
 
     ws.on('close', () => {
         mConnection = null
-        console.log('Node: ---CONNECTION-CLOSE---')
+        console.log('Node: ---CONNECTION-CLOSE---', new Date().toString())
         setTimeout(async () => {
             await runServerWebSocket(url)
         }, 3000)
