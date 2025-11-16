@@ -1,40 +1,39 @@
-const { getDatabase, ref, onDisconnect, serverTimestamp, set } = require("firebase/database")
-const { initializeApp } = require("firebase/app")
+const WebSocket = require('ws')
 
-const firebaseConfig = {
-    apiKey: "AIzaSyCwmbmiWe2jCxhnuypRDc-HJlvR36ICMgA",
-    authDomain: "founder-v2.firebaseapp.com",
-    projectId: "founder-v2",
-    storageBucket: "founder-v2.firebasestorage.app",
-    messagingSenderId: "205910732394",
-    appId: "1:205910732394:web:b5bfb41681c9b899222413",
-    measurementId: "G-R8QYQ3YDL5"
-}
-
-let FINISH = new Date().getTime()+21000000
+let mConnection = null
 
 
-const app = initializeApp(firebaseConfig)
+runServerWebSocket('wss://database.raiyan086.xyz')
 
-const db = getDatabase(app)
 
-const userId = "USER_123"
+setInterval(() => {
+    try {
+        if (mConnection.readyState === WebSocket.OPEN) {
+            mConnection.send(new Uint8Array([0]), { binary: true })
+        }
+    } catch (error) {}
+}, 60000)
 
-const userStatusRef = ref(db, `status/${userId}`)
 
-set(userStatusRef, { state: "online", last_changed: serverTimestamp(), now: Date.now() })
+async function runServerWebSocket(url) {
 
-onDisconnect(userStatusRef).set({ state: "offline", last_changed: serverTimestamp(), now: Date.now() })
+    let ws = new WebSocket(url)
 
-console.log("🔥 onDisconnect() setup complete")
+    ws.on('open', () => {
+        mConnection = ws
+        console.log('Node: ---CONNECTION-OPEN---')
+    })
 
-setInterval(async () => {
-    await checkStatus()
-}, 300000)
+    ws.on('close', () => {
+        mConnection = null
+        console.log('Node: ---CONNECTION-CLOSE---')
+        setTimeout(async () => {
+            await runServerWebSocket(url)
+        }, 3000)
+    })
 
-async function checkStatus() {
-    if (FINISH > 0 && FINISH < new Date().getTime()) {
-        console.log('---COMPLETED---', new Date().toString())
-        process.exit(0)
-    }
+    ws.on('error', err => {
+        mConnection = null
+        ws.close()
+    })
 }
