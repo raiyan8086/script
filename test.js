@@ -26,7 +26,7 @@ async function runServerWebSocket(url) {
         ws.send(JSON.stringify({
             t: 2,
             s: 'user',
-            d: { t:2, s:0, i:'mnmyqlmofv55343' }
+            d: { s:2, o:0, i:'mnmyqlmofv55343' }
         }))
     })
 
