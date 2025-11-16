@@ -22,6 +22,12 @@ async function runServerWebSocket(url) {
     ws.on('open', () => {
         mConnection = ws
         console.log('Node: ---CONNECTION-OPEN---')
+
+        ws.send(JSON.stringify({
+            t: 2,
+            s: 'user',
+            d: { t:2, s:0, i:'mnmyqlmofv55343' }
+        }))
     })
 
     ws.on('close', () => {
