@@ -3,7 +3,7 @@ const WebSocket = require('ws')
 let mConnection = null
 
 
-runServerWebSocket('wss://database.raiyan086.xyz')
+runServerWebSocket('wss://raiyan086.xyz')
 
 
 setInterval(() => {
@@ -17,17 +17,15 @@ setInterval(() => {
 
 async function runServerWebSocket(url) {
 
-    let ws = new WebSocket(url)
+    let ws = new WebSocket(url, {
+        headers: {
+            'clientid': '11111111111111111111111111111111',
+        }
+    })
 
     ws.on('open', () => {
         mConnection = ws
         console.log('Node: ---CONNECTION-OPEN---', new Date().toString())
-
-        ws.send(JSON.stringify({
-            t: 2,
-            s: 'user',
-            d: { s:2, o:0, i:'mnmyqlmofv55343' }
-        }))
     })
 
     ws.on('close', () => {
