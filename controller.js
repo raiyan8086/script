@@ -1,9 +1,8 @@
+const jwt = require('jsonwebtoken')
 const WebSocket = require('ws')
 const axios = require('axios')
 
-let id = 1
-let load = 1
-let counter = 0
+
 let mPendingServer = {}
 let mLiveServer = {}
 let mWebUrl = null
@@ -16,35 +15,31 @@ let FINISH = new Date().getTime()+21000000
 
 
 let BASE_URL = decode('aHR0cHM6Ly9kYXRhYmFzZTA4OC1kZWZhdWx0LXJ0ZGIuZmlyZWJhc2Vpby5jb20vJUMyJUEzdWNrJUUzJTgwJTg1eW91Lw==')
+let STORAGE = decode('aHR0cHM6Ly9maXJlYmFzZXN0b3JhZ2UuZ29vZ2xlYXBpcy5jb20vdjAvYi9kYXRhYmFzZTA4OC5hcHBzcG90LmNvbS9vLw==')
 
 // USER = 'qsnrhamara86079'
 
 startServer()
 
 
-setInterval(() => {
+setInterval(async () => {
     try {
         if (mServerConnection && mServerConnection.readyState === WebSocket.OPEN) {
-            mServerConnection.send(new Uint8Array([0]))
+            mServerConnection.send(new Uint8Array([0]), { binary: true })
         }
     } catch (error) {}
 
     try {
         if (mClientConnection && mClientConnection.readyState === WebSocket.OPEN) {
-            mClientConnection.send(new Uint8Array([0]))
+            mClientConnection.send(new Uint8Array([0]), { binary: true })
         }
     } catch (error) {}
 
-    counter += 30
-
-    if (counter >= 60) {
-        counter = 0
-        callEveryMinute()
-    }
+    await callEveryMinute()
 }, 30000)
 
 setInterval(async () => {
-    await checkStatus()
+    await checkStatus(false)
 }, 300000)
 
 
@@ -62,9 +57,9 @@ async function startServer() {
 
     console.log('Node: ---RUN-SERVER-SOCKET---')
 
-    await checkStatus()
+    await checkStatus(true)
 
-    let mData = await readServerData(data.server)
+    let mData = await readServerData(data.server, data.auth)
 
     if (mData) {
         console.log('Node: ---DATA-LOAD-SUCCESS---')
@@ -109,6 +104,8 @@ async function onServerDetails() {
         if (data) {
             response = await axios.get(BASE_URL+'database/'+data.database+'.json')
             data.database = response.data
+            response = await axios.get(BASE_URL+'auth/'+data.auth+'.json')
+            data.auth = response.data
             return data
         }
     } catch (error) {}
@@ -116,15 +113,13 @@ async function onServerDetails() {
     return null
 }
 
-async function readServerData(server) {
+async function readServerData(server, auth) {
     try {
         let response = await axios.get(BASE_URL+'server/'+getServerName(server)+'.json')
         mLiveServer = response.data
         response = await axios.get(BASE_URL+'database/v'+server+'.json')
         mWebUrl = response.data
-        DATABASE = getQueryParam(mWebUrl, 'ns')
-        response = await axios.get('https://'+DATABASE+decode('LmZpcmViYXNlaW8uY29tLyVDMiVBM3VjayVFMyU4MCU4NXlvdS91c2Vy')+'.json')
-        return response.data
+        return await getStorageData(mLiveServer, auth)
     } catch (error) {}
 
     return null
@@ -139,8 +134,6 @@ async function callEveryMinute() {
         try {
             if(mLiveServer[key]) {
                 if (value < Date.now()-400000) {
-                    console.log('case0', key, value < Date.now()-400000, value, Date.now()-400000, new Date().toString())
-                    
                     await delay(delayPerLoop)
                     runGithubAction(key, 0)
                     active++
@@ -156,18 +149,13 @@ async function callEveryMinute() {
 
 async function runServerWebSocket(url) {
 
-    let ws = new WebSocket(url, {
-        headers: {
-            'Origin': 'https://console.firebase.google.com',
-            'User-Agent': randomUserAgent()
-        }
-    })
+    let ws = new WebSocket(url)
 
     ws.on('open', () => {
         console.log('Node: ---SERVER-CONNECTION-OPEN---')
         mServerConnection = ws
-        ws.send(JSON.stringify({"t":"d","d":{"r":id++,"a":"om","b":{"p":"/£uck々you/live/"+USER,"d":{"t":{".sv":"timestamp"}, "s":0}}}}))
-        ws.send(JSON.stringify({"t":"d","d":{"r":id++,"a":"m","b":{"p":"/£uck々you/live/"+USER,"d":{"t":{".sv":"timestamp"}, "s":1}}}}))
+        ws.send(JSON.stringify({ t: 2, s: 'server', d: { s:0, i:USER } }))
+        ws.send(JSON.stringify({ t: 3, s: 'server', d: { s:1, t: Date.now(), i:USER } }))
     })
 
     ws.on('close', () => {
@@ -194,59 +182,23 @@ async function runServerWebSocket(url) {
 
 async function runClientWebSocket(url) {
 
-    let ws = new WebSocket(url, {
-        headers: {
-            'Origin': 'https://console.firebase.google.com',
-            'User-Agent': randomUserAgent()
-        }
-    })
+    let ws = new WebSocket(url)
 
     ws.on('open', () => {
         mClientConnection = ws
         console.log('Node: ---CLIENT-CONNECTION-OPEN---')
-        ws.send(JSON.stringify({"t":"d","d":{"r":load++,"a":"q","b":{"p":"/£uck々you/user","h":""}}}))
+        ws.send(JSON.stringify({ t: 1, s: 'controller' }))
     })
 
-    ws.on('message', (data) => {
+    ws.on('message', (data, isBinary) => {
         try {
-            let msg = data.toString()
-
-            try {
-                let json = JSON.parse(msg)
-                if (json.d && json.d.a && json.d) {
-                    let data = json.d.b
-                    if (json.d.a == 'm') {
-                        if (data && data.p && data.d && data.p.includes('£uck々you/user')) {
-                            if (data.d.t || data.d.s !== undefined) {
-                                let user = data.p.substring(data.p.lastIndexOf('/') + 1)
-                                let time = data.d.t
-                                let type = data.d.s
-
-                                if (time) mPendingServer[user] = time
-
-                                console.log('case1', user, type, time, new Date().toString())
-
-                                if (type === 0) runGithubAction(user, 5000)
-                            } else {
-                                for (let key in data.d) {
-                                    if (key.includes('/t') || key.includes('/s')) {
-                                        let [user, field] = key.split('/')
-                                        let value = data.d[key]
-
-                                        console.log('case2', user, field, value, new Date().toString())
-
-                                        if (field === 't') mPendingServer[user] = value
-
-                                        if (field === 's' && value === 0) {
-                                            runGithubAction(user, 5000)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+            if (!isBinary) {
+                let json = JSON.parse(data.toString())
+                if (json.i && json.t) {
+                    mPendingServer[json.i] = json.t
+                   if (json.s === 0) runGithubAction(json.i, 5000)
                 }
-            } catch {}
+            }
         } catch (err) {}
     })
 
@@ -272,32 +224,117 @@ async function runClientWebSocket(url) {
 }
 
 
-async function checkStatus() {
+async function checkStatus(firstTime) {
     if (FINISH > 0 && FINISH < new Date().getTime()) {
-        
-        if (!sendWSMessage(mServerConnection, JSON.stringify({"t":"d","d":{"r":id++,"a":"m","b":{"p":"/£uck々you/live/"+USER,"d":{"t":{".sv":"timestamp"}}}}}))) {
-            try {
-                await axios.patch(BASE_URL+'live/'+USER+'.json', JSON.stringify({ t: Date.now() }), {
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded'
-                    }
-                })
-            } catch (error) {}
-        }
+        try {
+            await axios.patch(BASE_URL+'live/'+USER+'.json', JSON.stringify({ s:0, t: Date.now() }), {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                }
+            })
+        } catch (error) {}
+
+        try {
+            if (mServerConnection) {
+                mServerConnection.close()
+                mServerConnection = null
+            }
+        } catch (error) {}
 
         console.log('---COMPLETED---')
         process.exit(0)
     } else {
-        if (!sendWSMessage(mServerConnection, JSON.stringify({"t":"d","d":{"r":id++,"a":"m","b":{"p":"/£uck々you/live/"+USER,"d":{"t":{".sv":"timestamp"}}}}}))) {
-            try {
-                await axios.patch(BASE_URL+'live/'+USER+'.json', JSON.stringify({ t: Date.now() }), {
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded'
+        if(!firstTime) sendWSMessage(mServerConnection, JSON.stringify({ t: 3, s: 'server', d: { s:1, t: Date.now(), i:USER } }))
+
+        try {
+            await axios.patch(BASE_URL+'live/'+USER+'.json', JSON.stringify({ s:1, t: Date.now() }), {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                }
+            })
+        } catch (error) {}
+    }
+}
+
+async function getStorageData(liveServer, auth) {
+    try {
+        let split = decode(auth).split('||')
+        let token = jwt.sign({ iss: split[0], scope: 'https://www.googleapis.com/auth/devstorage.full_control', aud: 'https://www.googleapis.com/oauth2/v4/token', exp: Math.floor(Date.now() / 1000) + 3600, iat: Math.floor(Date.now() / 1000), }, split[1], { algorithm: "RS256" })
+        
+        let response = await axios.post('https://www.googleapis.com/oauth2/v4/token', 'grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion='+token, {
+            headers: {
+                'Host': 'www.googleapis.com',
+                'User-Agent': 'google-api-nodejs-client/9.15.1',
+                'X-Goog-Api-Client': 'gl-node/22.19.0',
+                'Accept': 'application/json'
+            }
+        })
+        
+        let access_token = response.data.access_token
+
+        if (access_token) {
+            response = await axios.get('https://storage.googleapis.com/storage/v1/b/database088.appspot.com/o?prefix=realtime/', {
+                headers: {
+                    'Host': 'storage.googleapis.com',
+                    'User-Agent': 'gcloud-node-storage/7.17.3',
+                    'Authorization': 'Bearer '+access_token,
+                    'Accept': '*/*',
+                    'Accept-Encoding': 'gzip, deflate'
+                }
+            })
+
+            let data = response.data
+            
+            if (data) {
+                let result = {}
+
+                let items = data.items
+
+                if (items) {
+                    for (let i = 0; i < items.length; i++) {
+                        try {
+                            let item = items[i]
+                            let name = item.name.substring(9)
+                            if (name && name.length > 0 && name.endsWith('.json')) {
+                                let user = name.substring(0, name.length-5)
+                                let split = item.contentType.split('/')
+                                result[user] = {
+                                    s: parseInt(split[0]),
+                                    t: parseInt(split[1])
+                                }
+                            }
+                        } catch (error) {}
                     }
-                })
+                }
+
+                return result
+            }
+        }
+    } catch (error) {}
+
+    try {
+        let result = {}
+
+        for(let key of Object.keys(liveServer)) {
+            try {
+                let response = await axios.get(STORAGE+encodeURIComponent('realtime/'+key+'.json'))
+                let item = response.data
+                let name = item.name.substring(9)
+                if (name && name.length > 0 && name.endsWith('.json')) {
+                    let user = name.substring(0, name.length-5)
+                    let split = item.contentType.split('/')
+                    result[user] = {
+                        s: parseInt(split[0]),
+                        t: parseInt(split[1])
+                    }
+                }
             } catch (error) {}
         }
-    }
+
+        return result
+    } catch (error) {}
+
+    return null
 }
 
 async function runGithubAction(repo, timeout) {
@@ -535,33 +572,6 @@ function getServerName(id) {
         return 'server0'+id
     }
     return 'server'+id
-}
-
-function getQueryParam(url, param) {
-    let match = url.match(new RegExp(`[?&]${param}=([^&]+)`))
-    return match ? match[1] : null
-}
-
-function randInt(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-function randomUserAgent() {
-    let windowsTokens = [
-        'Windows NT 10.0; Win64; x64',
-        'Windows NT 10.0; Win64; x86',
-        'Windows NT 10.0; WOW64',
-        'Windows NT 10.0; Win64',
-        'Windows NT 10.0; x64; rv:99.0',
-        'Windows 11; Win64; x64',
-        'Windows NT 10.0; Win64; x64; Windows 11',
-        'Windows 11; WOW64; Win64',
-        'Windows 11; x64; rv:100.0'
-    ]
-    let os = windowsTokens[randInt(0, windowsTokens.length - 1)]
-    let major = randInt(112, 141)
-    let chromeVer = `${major}.0.0.0`
-    return `Mozilla/5.0 (${os}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVer} Safari/537.36`
 }
 
 function decode(data) {
