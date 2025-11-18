@@ -25,18 +25,22 @@ startServer()
 setInterval(async () => {
     try {
         if (mServerConnection && mServerConnection.readyState === WebSocket.OPEN) {
-            mServerConnection.send(new Uint8Array([0]), { binary: true })
+            mServerConnection.ping()
         }
     } catch (error) {}
 
     try {
         if (mClientConnection && mClientConnection.readyState === WebSocket.OPEN) {
-            mClientConnection.send(new Uint8Array([0]), { binary: true })
+            mClientConnection.ping()
         }
     } catch (error) {}
-
-    await callEveryMinute()
 }, 30000)
+
+setInterval(async () => {
+    try {
+        await callEveryMinute()
+    } catch (error) {}
+}, 60000)
 
 setInterval(async () => {
     await checkStatus(false)
