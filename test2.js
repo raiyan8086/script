@@ -33,6 +33,7 @@ async function runServerWebSocket(url) {
     })
 
     ws.on('error', err => {
+        console.log(err, new Date().toString())
         mConnection = null
         ws.close()
     })
