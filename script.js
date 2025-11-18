@@ -64,7 +64,7 @@ async function runWebSocket(url) {
     let port = 443
     let path = url.pathname + url.search
 
-    let socket = net.connect({ host, port }, () => {
+    let socket = net.connect({ host, port, serverName:host }, () => {
         socket.write(`GET ${path} HTTP/1.1\r\nHost: ${host}\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Key: ${randomWebSocketKey()}\r\nSec-WebSocket-Version: 13\r\n\r\n`);
         sendWSMessage(socket, JSON.stringify({ t: 2, s: 'controller', d: { s:0, i:USER } }))
         sendWSMessage(socket, JSON.stringify({ t: 3, s: 'controller', d: { s:1, t: Date.now(), i:USER } }))
