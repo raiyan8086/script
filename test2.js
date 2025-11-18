@@ -24,7 +24,10 @@ async function runServerWebSocket(url) {
         console.log('Node: ---CONNECTION-OPEN---', new Date().toString())
     })
 
-    ws.on('close', () => {
+    ws.on('close', (code, reason) => {
+        console.log('Code:', code)
+        console.log('Reason:', reason.toString())
+
         mConnection = null
         console.log('Node: ---CONNECTION-CLOSE---', new Date().toString())
         setTimeout(async () => {
@@ -33,7 +36,7 @@ async function runServerWebSocket(url) {
     })
 
     ws.on('error', err => {
-        console.log(err, new Date().toString())
+        console.error('⚠️ WebSocket error:', err)
         mConnection = null
         ws.close()
     })
