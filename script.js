@@ -16,7 +16,7 @@ startServer()
 
 setInterval(() => {
     sendPing(CONNECTION)
-}, 60000)
+}, 30000)
 
 setInterval(async () => {
     await checkStatus(false)
