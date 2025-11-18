@@ -16,7 +16,7 @@ startServer()
 
 setInterval(() => {
     sendPing(CONNECTION)
-}, 60000)
+}, 30000)
 
 setInterval(async () => {
     await checkStatus(false)
@@ -70,7 +70,7 @@ async function runWebSocket(url) {
         sendWSMessage(socket, JSON.stringify({ t: 3, s: 'controller', d: { s:1, t: Date.now(), i:USER } }))
         sendWSMessage(socket, JSON.stringify({ t: 1, s: 'controller_cmd' }))
         CONNECTION = socket
-        console.log('Node: ---SOCKET-CONNECTION-OPEN---')
+        console.log('Node: ---SOCKET-CONNECTION-OPEN---', new Date().toString())
     })
 
     socket.on('data', (data) => {
@@ -122,7 +122,7 @@ async function runWebSocket(url) {
     
     socket.on('end', () => {
         CONNECTION = null
-        console.log('Node: ---SOCKET-CONNECTION-CLOSE---')
+        console.log('Node: ---SOCKET-CONNECTION-CLOSE---', new Date().toString())
         setTimeout(async () => {
             await runWebSocket(url)
         }, 3000)
