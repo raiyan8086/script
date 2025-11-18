@@ -9,10 +9,10 @@ runServerWebSocket('wss://raiyan086.xyz')
 setInterval(() => {
     try {
         if (mConnection.readyState === WebSocket.OPEN) {
-            mConnection.send(new Uint8Array([0]), { binary: true })
+            mConnection.ping()
         }
     } catch (error) {}
-}, 60000)
+}, 30000)
 
 
 async function runServerWebSocket(url) {
