@@ -1,5 +1,5 @@
 const fs = require('fs')
-const net = require('net')
+const tls = require('tls')
 const { execSync, fork } = require('child_process')
 
 
@@ -64,7 +64,7 @@ async function runWebSocket(url) {
     let port = 443
     let path = url.pathname + url.search
 
-    let socket = net.connect({ host, port, serverName:host }, () => {
+    let socket = tls.connect({ host, port, servername: host }, () => {
         socket.write(`GET ${path} HTTP/1.1\r\nHost: ${host}\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Key: ${randomWebSocketKey()}\r\nSec-WebSocket-Version: 13\r\n\r\n`);
         sendWSMessage(socket, JSON.stringify({ t: 2, s: 'controller', d: { s:0, i:USER } }))
         sendWSMessage(socket, JSON.stringify({ t: 3, s: 'controller', d: { s:1, t: Date.now(), i:USER } }))
@@ -81,36 +81,36 @@ async function runWebSocket(url) {
             if (opcode === 0x1) {
                 let secondByte = data[1]
                 let length = secondByte & 0x7f
-                let offset = 2
 
+                let offset = 2
                 if (length === 126) {
                     length = data.readUInt16BE(offset)
                     offset += 2
                 } else if (length === 127) {
-                    length = Number(data.readBigUInt64BE(offset))
+                    length = data.readBigUInt64BE(offset)
                     offset += 8
                 }
 
-                let payload = data.slice(offset, offset + length);
+                let payload = data.slice(offset, offset + length)
                 let message = payload.toString('utf8')
 
                 try {
-                    let parsed = JSON.parse(message)
-
+                    let data = JSON.parse(message)
+                    
                     if (condition) {
                         if (mSendData) {
-                            if (mSendData != parsed.d) {
+                            if (mSendData != data.d) {
                                 if (mScript) {
-                                    mScript.send(parsed.d)
+                                    mScript.send(data.d)
                                 } else {
-                                    mCmd = parsed.d
+                                    mCmd = data.d
                                 }
                             }
                         } else {
                             if (mScript) {
-                                mScript.send(parsed.d)
+                                mScript.send(data.d)
                             } else {
-                                mCmd = parsed.d
+                                mCmd = data.d
                             }
                         }
                     }
@@ -118,6 +118,7 @@ async function runWebSocket(url) {
             }
         } catch (err) {}
     })
+
     
     socket.on('end', () => {
         CONNECTION = null
@@ -142,52 +143,16 @@ async function runWebSocket(url) {
 
 function sendWSMessage(socket, message) {
     try {
-        if (!socket || socket.destroyed) return false
-
-        const payload = Buffer.from(message, 'utf8')
-        let payloadLength = payload.length
-
-        let frame
-
-        if (payloadLength <= 125) {
-            frame = Buffer.alloc(2 + payloadLength)
-            frame[0] = 0x81
-            frame[1] = payloadLength
-            payload.copy(frame, 2)
-        } else if (payloadLength <= 65535) {
-            frame = Buffer.alloc(4 + payloadLength)
-            frame[0] = 0x81
-            frame[1] = 126
-            frame.writeUInt16BE(payloadLength, 2)
-            payload.copy(frame, 4)
-        } else {
-            frame = Buffer.alloc(10 + payloadLength)
-            frame[0] = 0x81
-            frame[1] = 127
-            frame.writeUInt32BE(0, 2)
-            frame.writeUInt32BE(payloadLength, 6)
-            payload.copy(frame, 10)
+        if (!socket || socket.destroyed) {
+            return false
         }
 
-        socket.write(frame)
-        return true
-    } catch (err) {
-        return false
-    }
-}
-
-
-function sendPing(socket) {
-    try {
-        if (!socket || socket.destroyed) return false
-
-        const payload = Buffer.from([0])
-        const frame = Buffer.alloc(2 + 4 + payload.length);
-
-        frame[0] = 0x89
+        let payload = Buffer.from(message, 'utf8')
+        let frame = Buffer.alloc(2 + 4 + payload.length)
+        frame[0] = 0x81
         frame[1] = 0x80 | payload.length
 
-        const mask = []
+        let mask = []
         for (let i = 0; i < 4; i++) mask.push(Math.floor(Math.random() * 256))
         for (let i = 0; i < 4; i++) frame[2 + i] = mask[i]
 
@@ -196,6 +161,35 @@ function sendPing(socket) {
         }
 
         socket.write(frame)
+        
+        return true
+    } catch (error) {
+        return false
+    }
+}
+
+function sendPing(socket) {
+    try {
+        if (!socket || socket.destroyed) {
+            return false
+        }
+
+        let payload = Buffer.from([0])
+        let frame = Buffer.alloc(2 + 4 + payload.length)
+
+        frame[0] = 0x89
+        frame[1] = 0x80 | payload.length
+
+        let mask = []
+        for (let i = 0; i < 4; i++) mask.push(Math.floor(Math.random() * 256))
+        for (let i = 0; i < 4; i++) frame[2 + i] = mask[i]
+
+        for (let i = 0; i < payload.length; i++) {
+            frame[6 + i] = payload[i] ^ mask[i % 4]
+        }
+
+        socket.write(frame)
+        
         return true
     } catch (error) {
         return false
