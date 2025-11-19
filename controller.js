@@ -34,9 +34,7 @@ setInterval(async () => {
             mClientConnection.ping()
         }
     } catch (error) {}
-}, 30000)
 
-setInterval(async () => {
     try {
         await callEveryMinute()
     } catch (error) {}
@@ -153,7 +151,11 @@ async function callEveryMinute() {
 
 async function runServerWebSocket(url) {
 
-    let ws = new WebSocket(url)
+    let ws = new WebSocket(url, {
+        headers: {
+            'x-client-id': USER
+        }
+    })
 
     ws.on('open', () => {
         console.log('Node: ---SERVER-CONNECTION-OPEN---')
@@ -186,7 +188,11 @@ async function runServerWebSocket(url) {
 
 async function runClientWebSocket(url) {
 
-    let ws = new WebSocket(url)
+    let ws = new WebSocket(url, {
+        headers: {
+            'x-client-id': USER
+        }
+    })
 
     ws.on('open', () => {
         mClientConnection = ws
