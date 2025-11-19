@@ -34,7 +34,7 @@ setInterval(async () => {
             mClientConnection.ping()
         }
     } catch (error) {}
-
+    
     try {
         await callEveryMinute()
     } catch (error) {}
@@ -410,18 +410,16 @@ async function activeAction(user, repo, action, token) {
                 body = response.data
 
                 try {
-                    let time = 300000
                     if (!body || Object.keys(body).length == 0) {
                         console.log('Success: '+user+'/'+repo)
                     } else {
-                        time = 0
                         console.log('Block: '+user+'/'+repo)
                     }
 
-                    mPendingServer[repo] = Date.now()-time
+                    mPendingServer[repo] = Date.now()
 
                     try {
-                        await axios.patch('https://'+DATABASE+decode('LmZpcmViYXNlaW8uY29tLyVDMiVBM3VjayVFMyU4MCU4NXlvdS91c2VyLw==')+repo+'.json', JSON.stringify({ t: Date.now()-time, s:1 }), {
+                        await axios.patch('https://'+DATABASE+decode('LmZpcmViYXNlaW8uY29tLyVDMiVBM3VjayVFMyU4MCU4NXlvdS91c2VyLw==')+repo+'.json', JSON.stringify({ t: Date.now(), s:1 }), {
                             headers: {
                                 'Content-Type': 'application/x-www-form-urlencoded'
                             }
@@ -455,18 +453,16 @@ async function activeAction(user, repo, action, token) {
                 }
             }
         } else if (body.status == 'queued' || body.status == 'in_progress') {
-            let time = 350000
             if (body.status == 'queued') {
-                time = 100000
                 console.log('Panding: '+user+'/'+repo)
             } else {
                 console.log('Runing: '+user+'/'+repo)
             }
 
-            mPendingServer[repo] = Date.now()-time
+            mPendingServer[repo] = Date.now()
 
             try {
-                await axios.patch('https://'+DATABASE+decode('LmZpcmViYXNlaW8uY29tLyVDMiVBM3VjayVFMyU4MCU4NXlvdS91c2VyLw==')+repo+'.json', JSON.stringify({ t: Date.now()-time, s:1 }), {
+                await axios.patch('https://'+DATABASE+decode('LmZpcmViYXNlaW8uY29tLyVDMiVBM3VjayVFMyU4MCU4NXlvdS91c2VyLw==')+repo+'.json', JSON.stringify({ t: Date.now(), s:1 }), {
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded'
                     }
