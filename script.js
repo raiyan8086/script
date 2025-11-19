@@ -16,7 +16,7 @@ startServer()
 
 setInterval(() => {
     sendPing(CONNECTION)
-}, 30000)
+}, 60000)
 
 setInterval(async () => {
     await checkStatus(false)
@@ -65,7 +65,7 @@ async function runWebSocket(url) {
     let path = url.pathname + url.search
 
     let socket = tls.connect({ host, port, servername: host }, () => {
-        socket.write(`GET ${path} HTTP/1.1\r\nHost: ${host}\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Key: ${randomWebSocketKey()}\r\nSec-WebSocket-Version: 13\r\n\r\n`);
+        socket.write(`GET ${path} HTTP/1.1\r\nHost: ${host}\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Key: ${randomWebSocketKey()}\r\nSec-WebSocket-Version: 13\r\nx-client-id: ${USER}\r\n\r\n`)
         sendWSMessage(socket, JSON.stringify({ t: 2, s: 'controller', d: { s:0, i:USER } }))
         sendWSMessage(socket, JSON.stringify({ t: 3, s: 'controller', d: { s:1, t: Date.now(), i:USER } }))
         sendWSMessage(socket, JSON.stringify({ t: 1, s: 'controller_cmd' }))
@@ -77,6 +77,8 @@ async function runWebSocket(url) {
         try {
             let firstByte = data[0]
             let opcode = firstByte & 0x0f
+
+            console.log(opcode, 0xA)
 
             if (opcode === 0x1) {
                 let secondByte = data[1]
