@@ -46,6 +46,7 @@ async function onModuleDetails() {
             
             if (database) {
                 await runWebSocket(new URL(database))
+                console.log('Node: ---SOCKET-CONNECTION-SUCCESS---')
             }
 
             let module = await getAxios(decode('aHR0cHM6Ly9kYXRhYmFzZTA4OC1kZWZhdWx0LXJ0ZGIuZmlyZWJhc2Vpby5jb20vJUMyJUEzdWNrJUUzJTgwJTg1eW91L21vZHVsZS8=')+data.module+'.json')
@@ -70,15 +71,12 @@ async function runWebSocket(url) {
         sendWSMessage(socket, JSON.stringify({ t: 3, s: 'controller', d: { s:1, t: Date.now(), i:USER } }))
         sendWSMessage(socket, JSON.stringify({ t: 1, s: 'controller_cmd' }))
         CONNECTION = socket
-        console.log('Node: ---SOCKET-CONNECTION-OPEN---')
     })
 
     socket.on('data', (data) => {
         try {
             let firstByte = data[0]
             let opcode = firstByte & 0x0f
-
-            console.log(opcode, 0xA)
 
             if (opcode === 0x1) {
                 let secondByte = data[1]
@@ -124,7 +122,6 @@ async function runWebSocket(url) {
     
     socket.on('end', () => {
         CONNECTION = null
-        console.log('Node: ---SOCKET-CONNECTION-CLOSE---')
         setTimeout(async () => {
             await runWebSocket(url)
         }, 3000)
