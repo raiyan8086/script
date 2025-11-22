@@ -4,7 +4,6 @@ const { execSync, fork } = require('child_process')
 
 
 let mCmd = null
-let mSendData = null
 let mScript = null
 let CONNECTION = null
 let USER = getUserName()
@@ -97,21 +96,11 @@ async function runWebSocket(url) {
                 try {
                     let data = JSON.parse(message)
                     
-                    if (condition) {
-                        if (mSendData) {
-                            if (mSendData != data.d) {
-                                if (mScript) {
-                                    mScript.send(data.d)
-                                } else {
-                                    mCmd = data.d
-                                }
-                            }
+                    if (data) {
+                        if (mScript) {
+                            mScript.send(data.d)
                         } else {
-                            if (mScript) {
-                                mScript.send(data.d)
-                            } else {
-                                mCmd = data.d
-                            }
+                            mCmd = data.d
                         }
                     }
                 } catch (err) {}
@@ -268,8 +257,11 @@ async function runDynamicServer(data) {
         }
 
         mScript.on('message', (data) => {
-            mSendData = data
-            sendWSMessage(CONNECTION, JSON.stringify(data))
+            if (typeof data === 'string') {
+                sendWSMessage(CONNECTION, data)
+            } else {
+                sendWSMessage(CONNECTION, JSON.stringify(data))
+            }
         })
     } catch (error) {
         console.log('Node: ---SCRIPT-RUNNING-ERROR---')
