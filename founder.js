@@ -2,6 +2,8 @@ const args = process.argv.slice(2)
 
 let USER = args[0]
 
+console.log('User: '+USER)
+
 let mConfig = null
 
 process.on('message', async (data) => {
