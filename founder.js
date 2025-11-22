@@ -1,13 +1,60 @@
-console.log('Load Success')
+const args = process.argv.slice(2)
 
-const arg = process.argv[2]
+let USER = args[0]
 
-console.log('Received arg:', arg)
+let mConfig = null
 
-process.on('message', (data) => {
-    console.log('From index:', data)
-    // process.send(JSON.stringify({"s":300}))
+process.on('message', async (data) => {
+    try {
+        let json = JSON.parse(data)
+        if (json.t == 1) {
+            mConfig = json
+        }
+    } catch (error) {}
 })
 
-setInterval(async () => {
-}, 60000)
+
+foundLoginNumber()
+
+
+async function foundLoginNumber() {
+    let loopDelay = 500
+    let load = 0
+
+    while (true) {
+        if (mConfig) {
+            try {
+                let prev = mConfig.n
+                let size = mConfig.s
+                let key = mConfig.u
+
+                for (let i = 0; i < size; i++) {
+                    try {
+                        if (prev != mConfig.n) {
+                            i = 0
+                            size = mConfig.s
+                            prev = mConfig.n
+                        }
+
+                        let number = mConfig.n+i
+
+                        await delay(loopDelay)
+                    } catch (error) {
+                        break
+                    }
+                }
+
+                mConfig = null
+                process.send({ t: 3, s: 'controller_status', d: { c:1, u:key, s:USER } })
+            } catch (error) {}
+        } else {
+            await delay(1000)
+        }
+    }
+}
+
+function delay(time) {
+    return new Promise(function(resolve) {
+        setTimeout(resolve, time)
+    })
+}
