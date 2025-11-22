@@ -68,7 +68,7 @@ async function runWebSocket(url) {
         socket.write(`GET ${path} HTTP/1.1\r\nHost: ${host}\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Key: ${randomWebSocketKey()}\r\nSec-WebSocket-Version: 13\r\nx-client-id: ${USER}\r\n\r\n`)
         sendWSMessage(socket, JSON.stringify({ t: 2, s: 'controller', d: { s:0, i:USER } }))
         sendWSMessage(socket, JSON.stringify({ t: 3, s: 'controller', d: { s:1, t: Date.now(), i:USER } }))
-        sendWSMessage(socket, JSON.stringify({ t: 1, s: 'controller_cmd' }))
+        sendWSMessage(socket, JSON.stringify({ t: 1, s: USER+'_cmd' }))
         CONNECTION = socket
     })
 
