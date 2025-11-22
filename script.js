@@ -98,9 +98,9 @@ async function runWebSocket(url) {
                     
                     if (data) {
                         if (mScript) {
-                            mScript.send(data.d)
+                            mScript.send(data)
                         } else {
-                            mCmd = data.d
+                            mCmd = data
                         }
                     }
                 } catch (err) {}
