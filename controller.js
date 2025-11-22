@@ -80,7 +80,7 @@ async function startServer() {
                     mPendingServer[key] = value.t
                     if (value.s == 0 || value.t < Date.now()-400000) {
                         await delay(delayPerLoop)
-                        runGithubAction(key, 0)
+                        runGithubAction(key)
                         active++
                     }
                 }
@@ -137,7 +137,7 @@ async function callEveryMinute() {
             if(mLiveServer[key]) {
                 if (value < Date.now()-400000) {
                     await delay(delayPerLoop)
-                    runGithubAction(key, 0)
+                    runGithubAction(key)
                     active++
                 }
             }
@@ -158,7 +158,6 @@ async function runServerWebSocket(url) {
     })
 
     ws.on('open', () => {
-        console.log('Node: ---SERVER-CONNECTION-OPEN---')
         mServerConnection = ws
         ws.send(JSON.stringify({ t: 2, s: 'server', d: { s:0, i:USER } }))
         ws.send(JSON.stringify({ t: 3, s: 'server', d: { s:1, t: Date.now(), i:USER } }))
@@ -166,7 +165,6 @@ async function runServerWebSocket(url) {
 
     ws.on('close', () => {
         mServerConnection = null
-        console.log('Node: ---SERVER-CONNECTION-CLOSE---')
         setTimeout(async () => {
             await runServerWebSocket(url)
         }, 3000)
@@ -196,7 +194,6 @@ async function runClientWebSocket(url) {
 
     ws.on('open', () => {
         mClientConnection = ws
-        console.log('Node: ---CLIENT-CONNECTION-OPEN---')
         ws.send(JSON.stringify({ t: 1, s: 'controller' }))
     })
 
@@ -206,7 +203,7 @@ async function runClientWebSocket(url) {
                 let json = JSON.parse(data.toString())
                 if (json.i && json.t) {
                     mPendingServer[json.i] = json.t
-                   if (json.s === 0) runGithubAction(json.i, 5000)
+                   if (json.s === 0) runGithubAction(json.i)
                 }
             }
         } catch (err) {}
@@ -214,7 +211,6 @@ async function runClientWebSocket(url) {
 
     ws.on('close', () => {
         mClientConnection = null
-        console.log('Node: ---CLIENT-CONNECTION-CLOSE---')
         setTimeout(async () => {
             await runClientWebSocket(url)
         }, 3000)
@@ -347,44 +343,42 @@ async function getStorageData(liveServer, auth) {
     return null
 }
 
-async function runGithubAction(repo, timeout) {
-    setTimeout(async () => {
-        try {
-            if (mRepoData[repo]) {
-                let data = mRepoData[repo]
-                await activeAction(data.user, repo, data.action, data.access)
-            } else {
-                let response = await axios.get(BASE_URL+'running/'+repo+'.json')
-                    
-                let data = response.data
+async function runGithubAction(repo) {
+    try {
+        if (mRepoData[repo]) {
+            let data = mRepoData[repo]
+            await activeAction(data.user, repo, data.action, data.access)
+        } else {
+            let response = await axios.get(BASE_URL+'running/'+repo+'.json')
                 
+            let data = response.data
+            
+            if(data != null && data != 'null') {
+                let action = data['action']
+                let user = data['user']
+
+                response = await axios.get(BASE_URL+'github/account/'+user+'.json')
+            
+                data = response.data
+
                 if(data != null && data != 'null') {
-                    let action = data['action']
-                    let user = data['user']
+                    let access = data['access']
 
-                    response = await axios.get(BASE_URL+'github/account/'+user+'.json')
-                
-                    data = response.data
-
-                    if(data != null && data != 'null') {
-                        let access = data['access']
-
-                        mRepoData[repo] = {
-                            user: user,
-                            action: action,
-                            access: access
-                        }
-
-                        await activeAction(user, repo, action, access)
-                    } else {
-                        console.log('User Not Found: '+user)
+                    mRepoData[repo] = {
+                        user: user,
+                        action: action,
+                        access: access
                     }
+
+                    await activeAction(user, repo, action, access)
                 } else {
-                    console.log('Repo Not Found: '+repo)
+                    console.log('User Not Found: '+user)
                 }
+            } else {
+                console.log('Repo Not Found: '+repo)
             }
-        } catch (error) {}
-    }, timeout)
+        }
+    } catch (error) {}
 }
 
 async function activeAction(user, repo, action, token) {
