@@ -6,9 +6,9 @@ console.log('User: '+USER)
 
 let mConfig = null
 
-process.on('message', async (data) => {
+process.on('message', (data) => {
     try {
-        let json = JSON.parse(data)
+        let json = (typeof data === 'string') ? JSON.parse(data) : data
         if (json.t == 1) {
             mConfig = json
         }
