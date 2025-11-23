@@ -47,7 +47,7 @@ async function foundLoginNumber() {
                 }
 
                 mConfig = null
-                process.send({ t: 3, s: 'controller_status', d: { c:1, u:key, s:USER } })
+                process.send({ t: 3, s: 'controller_status', d: { c:1, u:key, s:USER, f:0, o:0 } })
             } catch (error) {}
         } else {
             await delay(1000)
