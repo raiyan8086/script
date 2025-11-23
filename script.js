@@ -76,8 +76,6 @@ async function runWebSocket(url) {
 
     socket.on('data', (data) => {
         try {
-            console.log(data)
-            
             let firstByte = data[0]
             let opcode = firstByte & 0x0f
 
