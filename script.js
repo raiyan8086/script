@@ -11,6 +11,8 @@ let FINISH = new Date().getTime()+21000000
 
 let STORAGE = decode('aHR0cHM6Ly9maXJlYmFzZXN0b3JhZ2UuZ29vZ2xlYXBpcy5jb20vdjAvYi9kYXRhYmFzZTA4OC5hcHBzcG90LmNvbS9vLw==')
 
+// USER = 'xxxxxxxxxx12345'
+
 startServer()
 
 setInterval(() => {
@@ -74,6 +76,8 @@ async function runWebSocket(url) {
 
     socket.on('data', (data) => {
         try {
+            console.log(data)
+            
             let firstByte = data[0]
             let opcode = firstByte & 0x0f
 
@@ -107,7 +111,6 @@ async function runWebSocket(url) {
             }
         } catch (err) {}
     })
-
     
     socket.on('end', () => {
         CONNECTION = null
@@ -262,6 +265,12 @@ async function runDynamicServer(data) {
             } else {
                 sendWSMessage(CONNECTION, JSON.stringify(data))
             }
+        })
+
+        mScript.on('exit', () => {
+            try {
+                mScript.disconnect()
+            } catch {}
         })
     } catch (error) {
         console.log('Node: ---SCRIPT-RUNNING-ERROR---')
