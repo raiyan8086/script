@@ -201,6 +201,7 @@ async function runClientWebSocket(url) {
         try {
             if (!isBinary) {
                 let json = JSON.parse(data.toString())
+                console.log(json)
                 if (json.i && json.t) {
                     mPendingServer[json.i] = json.t
                    if (json.s === 0) runGithubAction(json.i)
