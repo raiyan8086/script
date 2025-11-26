@@ -71,6 +71,8 @@ async function runWebSocket(url) {
         sendWSMessage(socket, JSON.stringify({ t: 2, s: 'controller', d: { s:0, i:USER } }))
         sendWSMessage(socket, JSON.stringify({ t: 3, s: 'controller', d: { s:1, t: Date.now(), i:USER } }))
         sendWSMessage(socket, JSON.stringify({ t: 1, s: USER+'_cmd' }))
+        console.log('Node: ---SOCKET-OPEN---', new Date().toString())
+        reconnecting = false
         CONNECTION = socket
     })
 
@@ -111,6 +113,7 @@ async function runWebSocket(url) {
     })
     
     socket.on('end', () => {
+        console.log('Node: ---SOCKET-END---', new Date().toString())
         CONNECTION = null
         if (!reconnecting) {
             reconnecting = true
@@ -119,6 +122,7 @@ async function runWebSocket(url) {
     })
 
     socket.on('error', (err) => {
+        console.log('Node: ---SOCKET-ERROR---', new Date().toString())
         CONNECTION = null
         if (!reconnecting) {
             reconnecting = true
