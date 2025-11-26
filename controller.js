@@ -160,6 +160,7 @@ async function runServerWebSocket(url) {
     })
 
     ws.on('open', () => {
+        console.log('Node: ---SERVER-SOCKET-OPEN---', new Date().toString())
         mServerConnection = ws
         serverReconnecting = false
         ws.send(JSON.stringify({ t: 2, s: 'server', d: { s:0, i:USER } }))
@@ -167,6 +168,7 @@ async function runServerWebSocket(url) {
     })
 
     ws.on('close', () => {
+        console.log('Node: ---SERVER-SOCKET-CLOSE---', new Date().toString())
         mServerConnection = null
         if (!serverReconnecting) {
             serverReconnecting = true
@@ -175,6 +177,7 @@ async function runServerWebSocket(url) {
     })
 
     ws.on('error', err => {
+        console.log('Node: ---SERVER-SOCKET-ERROR---', new Date().toString())
         mServerConnection = null
         if (!serverReconnecting) {
             serverReconnecting = true
@@ -200,6 +203,7 @@ async function runClientWebSocket(url) {
     })
 
     ws.on('open', () => {
+        console.log('Node: ---CLIENT-SOCKET-OPEN---', new Date().toString())
         mClientConnection = ws
         clientReconnecting = false
         ws.send(JSON.stringify({ t: 1, s: 'controller' }))
@@ -221,6 +225,7 @@ async function runClientWebSocket(url) {
     })
 
     ws.on('close', () => {
+        console.log('Node: ---CLIENT-SOCKET-CLOSE---', new Date().toString())
         mClientConnection = null
         if (!clientReconnecting) {
             clientReconnecting = true
@@ -229,6 +234,7 @@ async function runClientWebSocket(url) {
     })
 
     ws.on('error', err => {
+        console.log('Node: ---CLIENT-SOCKET-ERROR---', new Date().toString())
         mClientConnection = null
         if (!clientReconnecting) {
             clientReconnecting = true
