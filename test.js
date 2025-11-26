@@ -106,7 +106,7 @@ async function startBrowser() {
 
 
 async function foundLoginNumber() {
-    let loopDelay = 500
+    let loopDelay = 300
     let load = 0
 
     while (true) {
