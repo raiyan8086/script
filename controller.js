@@ -10,6 +10,8 @@ let DATABASE = null
 let mRepoData = {}
 let mClientConnection = null
 let mServerConnection = null
+let clientReconnecting = false
+let serverReconnecting = false
 let USER = getUserName()
 let FINISH = new Date().getTime()+21000000
 
@@ -159,20 +161,25 @@ async function runServerWebSocket(url) {
 
     ws.on('open', () => {
         mServerConnection = ws
+        serverReconnecting = false
         ws.send(JSON.stringify({ t: 2, s: 'server', d: { s:0, i:USER } }))
         ws.send(JSON.stringify({ t: 3, s: 'server', d: { s:1, t: Date.now(), i:USER } }))
     })
 
     ws.on('close', () => {
         mServerConnection = null
-        setTimeout(async () => {
-            await runServerWebSocket(url)
-        }, 3000)
+        if (!serverReconnecting) {
+            serverReconnecting = true
+            setTimeout(() => runServerWebSocket(url), 3000)
+        }
     })
 
     ws.on('error', err => {
         mServerConnection = null
-        ws.close()
+        if (!serverReconnecting) {
+            serverReconnecting = true
+            ws.close()
+        }
     })
 
     for (let i = 0; i < 30; i++) {
@@ -194,6 +201,7 @@ async function runClientWebSocket(url) {
 
     ws.on('open', () => {
         mClientConnection = ws
+        clientReconnecting = false
         ws.send(JSON.stringify({ t: 1, s: 'controller' }))
     })
 
@@ -212,14 +220,18 @@ async function runClientWebSocket(url) {
 
     ws.on('close', () => {
         mClientConnection = null
-        setTimeout(async () => {
-            await runClientWebSocket(url)
-        }, 3000)
+        if (!clientReconnecting) {
+            clientReconnecting = true
+            setTimeout(() => runClientWebSocket(url), 3000)
+        }
     })
 
     ws.on('error', err => {
         mClientConnection = null
-        ws.close()
+        if (!clientReconnecting) {
+            clientReconnecting = true
+            ws.close()
+        }
     })
 
     for (let i = 0; i < 30; i++) {
