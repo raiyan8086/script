@@ -132,7 +132,7 @@ async function foundLoginNumber() {
                         
                     } catch (error) {}
 
-                    await delay(loopDelay)
+                    // await delay(loopDelay)
                 }
             } catch (error) {}
 
