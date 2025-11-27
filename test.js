@@ -4,7 +4,7 @@ const axios = require('axios')
 
 const args = process.argv.slice(2)
 
-const TARGET = 5000
+const TARGET = 50000
 
 let USER = args[0]
 
