@@ -113,7 +113,7 @@ async function runWebSocket(url) {
     })
     
     socket.on('end', () => {
-        console.log('Node: ---SOCKET-END---', new Date().toString())
+        console.log('Node: ---SOCKET-END---', new Date().toString(), reconnecting)
         CONNECTION = null
         if (!reconnecting) {
             reconnecting = true
@@ -122,7 +122,8 @@ async function runWebSocket(url) {
     })
 
     socket.on('error', (err) => {
-        console.log('Node: ---SOCKET-ERROR---', new Date().toString())
+        console.log('Node: ---SOCKET-ERROR---', new Date().toString(), reconnecting)
+        console.log(err)
         CONNECTION = null
         if (!reconnecting) {
             reconnecting = true
