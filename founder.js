@@ -242,7 +242,7 @@ async function parallelRequest(page, url, reqHeaders, postData) {
             console.log('Load', XXXX++, Date.now()-mLoad, 0)
         }
     } catch (err) {
-        console.log('error', XXXX++)
+        console.log('error', XXXX++, err)
     }
 
     return null
